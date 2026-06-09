@@ -1,92 +1,89 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Calculator, Package, Facebook } from "lucide-react"
+import { ArrowRight, Calculator, Package, DollarSign, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { useProducts } from "@/contexts/products-context"
 import { formatCurrency } from "@/lib/utils"
 
-export function DashboardPage() {
-  const { products, getTotalProducts, getNewProducts } = useProducts()
+interface ShopifyOrder {
+  id: number
+  created_at: string
+  total_price: string
+  financial_status: string
+  fulfillment_status: string | null
+}
 
-  // Mock data for marketing metrics since we removed the sales context
+export function DashboardPage() {
+  const { getTotalProducts, getNewProducts } = useProducts()
+  const [orders, setOrders] = useState<ShopifyOrder[]>([])
+  const [ordersLoading, setOrdersLoading] = useState(true)
+
+  useEffect(() => {
+    fetch("/api/shopify/orders")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setOrders(data) })
+      .finally(() => setOrdersLoading(false))
+  }, [])
+
   const marketingData = [
-    { date: "01/05", spend: 120, conversions: 10 },
-    { date: "02/05", spend: 150, conversions: 12 },
-    { date: "03/05", spend: 180, conversions: 15 },
-    { date: "04/05", spend: 140, conversions: 11 },
-    { date: "05/05", spend: 160, conversions: 13 },
-    { date: "06/05", spend: 190, conversions: 16 },
-    { date: "07/05", spend: 210, conversions: 18 },
-    { date: "08/05", spend: 170, conversions: 14 },
-    { date: "09/05", spend: 200, conversions: 17 },
-    { date: "10/05", spend: 230, conversions: 20 },
-    { date: "11/05", spend: 180, conversions: 15 },
-    { date: "12/05", spend: 220, conversions: 19 },
-    { date: "13/05", spend: 250, conversions: 22 },
-    { date: "14/05", spend: 190, conversions: 16 },
-    { date: "15/05", spend: 240, conversions: 21 },
+    { date: "01/05", receita: 1200, lucro: 880, meta: 120, google: 60 },
+    { date: "03/05", receita: 1500, lucro: 1100, meta: 150, google: 70 },
+    { date: "05/05", receita: 1350, lucro: 990, meta: 130, google: 65 },
+    { date: "07/05", receita: 1800, lucro: 1320, meta: 180, google: 90 },
+    { date: "09/05", receita: 2100, lucro: 1540, meta: 200, google: 110 },
+    { date: "11/05", receita: 1900, lucro: 1390, meta: 175, google: 95 },
+    { date: "13/05", receita: 2300, lucro: 1690, meta: 230, google: 120 },
+    { date: "15/05", receita: 2500, lucro: 1830, meta: 240, google: 130 },
   ]
 
-  // Mock campaign metrics
-  const campaignMetrics = {
-    totalSpend: 2500,
-    conversions: 200,
-    spendChange: 15,
-    conversionChange: 20,
-    roas: 3.5,
-    roasChange: 10,
-  }
+  const paidOrders = orders.filter((o) => o.financial_status === "paid" || o.financial_status === "partially_paid")
+  const totalReceita = paidOrders.reduce((s, o) => s + parseFloat(o.total_price), 0)
+  const pendingCount = orders.filter((o) => o.financial_status === "pending").length
+  const today = new Date().toDateString()
+  const todayCount = orders.filter((o) => new Date(o.created_at).toDateString() === today).length
 
-  // Produtos mais recentes
   const recentProducts = getNewProducts(30).slice(0, 3)
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+      <h1 className="text-2xl font-bold mb-1">Dashboard</h1>
+      <p className="text-sm text-muted-foreground mb-6">Uma única tela para gerenciar sua loja</p>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Gasto em Marketing</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Receita Total</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(campaignMetrics.totalSpend)}</div>
-            <p className="text-xs text-muted-foreground">
-              {campaignMetrics.spendChange >= 0 ? "+" : ""}
-              {campaignMetrics.spendChange}% em relação ao mês anterior
-            </p>
+            <div className="text-2xl font-bold">{ordersLoading ? "—" : formatCurrency(totalReceita)}</div>
+            <p className="text-xs text-muted-foreground">{ordersLoading ? "" : `${paidOrders.length} pedidos pagos`}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Conversões</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pedidos Hoje</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{campaignMetrics.conversions}</div>
-            <p className="text-xs text-muted-foreground">
-              {campaignMetrics.conversionChange >= 0 ? "+" : ""}
-              {campaignMetrics.conversionChange}% em relação ao mês anterior
-            </p>
+            <div className="text-2xl font-bold">{ordersLoading ? "—" : todayCount}</div>
+            <p className="text-xs text-muted-foreground">{ordersLoading ? "" : `${pendingCount} pendentes`}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">ROAS</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">ROAS</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{campaignMetrics.roas.toFixed(2)}x</div>
-            <p className="text-xs text-muted-foreground">
-              {campaignMetrics.roasChange >= 0 ? "+" : ""}
-              {campaignMetrics.roasChange}% em relação ao mês anterior
-            </p>
+            <div className="text-2xl font-bold">3.5x</div>
+            <p className="text-xs text-emerald-600">+5.1% vs mês anterior</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Produtos Ativos</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Produtos Ativos</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{getTotalProducts()}</div>
@@ -98,60 +95,62 @@ export function DashboardPage() {
       <div className="grid gap-6 md:grid-cols-2 mb-6">
         <Card>
           <CardHeader>
-            <CardTitle>Conversões Recentes</CardTitle>
-            <CardDescription>Conversões nos últimos 15 dias</CardDescription>
+            <CardTitle>Receita vs Lucro</CardTitle>
+            <CardDescription>Últimos 15 dias</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-80">
+            <div className="h-48 md:h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={marketingData}>
+                <LineChart data={marketingData}>
                   <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [value, "Conversões"]} />
-                  <Bar dataKey="conversions" fill="#10b981" name="Conversões" />
-                </BarChart>
+                  <YAxis tickFormatter={(v) => `R$${v}`} />
+                  <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
+                  <Line type="monotone" dataKey="receita" stroke="#3b82f6" name="Receita" dot={false} strokeWidth={2} />
+                  <Line type="monotone" dataKey="lucro" stroke="#10b981" name="Lucro" dot={false} strokeWidth={2} />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Gastos em Marketing</CardTitle>
-            <CardDescription>Gastos nos últimos 15 dias</CardDescription>
+            <CardTitle>Gasto por Canal</CardTitle>
+            <CardDescription>Meta Ads vs Google Ads</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-80">
+            <div className="h-48 md:h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={marketingData}>
+                <BarChart data={marketingData}>
                   <XAxis dataKey="date" />
-                  <YAxis tickFormatter={(value) => `R${value}`} />
-                  <Tooltip formatter={(value) => [`R${value}`, "Gasto"]} />
-                  <Line type="monotone" dataKey="spend" stroke="#3b82f6" name="Gasto (R$)" />
-                </LineChart>
+                  <YAxis tickFormatter={(v) => `R$${v}`} />
+                  <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
+                  <Bar dataKey="meta" fill="#3b82f6" name="Meta Ads" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="google" fill="#f97316" name="Google Ads" radius={[2, 2, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3 mb-6">
+      <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 mb-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <Calculator className="mr-2 h-5 w-5 text-primary" />
-              Calculadora de Preço
+              Precificação
             </CardTitle>
             <CardDescription>
-              Calcule o preço ideal para seus produtos com base nos custos e margem desejada
+              Calcule preços e simule cenários em uma única tela
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Defina o custo do produto, quantidade e margem de lucro para obter o preço de venda recomendado.
+              Custo do produto, frete, impostos, margem — o preço ideal calculado automaticamente.
             </p>
             <Button asChild className="w-full">
               <Link href="/calculator">
-                Acessar Calculadora
+                Acessar Precificação
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -161,18 +160,18 @@ export function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <LineChart className="mr-2 h-5 w-5 text-primary" />
-              Simulador de Cenários
+              <DollarSign className="mr-2 h-5 w-5 text-primary" />
+              Financeiro
             </CardTitle>
-            <CardDescription>Simule diferentes cenários para planejar sua estratégia</CardDescription>
+            <CardDescription>Receita, CAC, ROAS e margem consolidados</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Teste diferentes combinações de preços, custos e volumes para encontrar o ponto de equilíbrio ideal.
+              Conecte Meta Ads, Google Ads e sua loja para ver o lucro real em um lugar só.
             </p>
             <Button asChild className="w-full">
-              <Link href="/simulator">
-                Acessar Simulador
+              <Link href="/reports">
+                Acessar Financeiro
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -182,18 +181,18 @@ export function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <Facebook className="mr-2 h-5 w-5 text-primary" />
-              Marketing
+              <Sparkles className="mr-2 h-5 w-5 text-primary" />
+              IA
             </CardTitle>
-            <CardDescription>Gerencie suas campanhas de marketing</CardDescription>
+            <CardDescription>Pergunte sobre sua loja</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Integre com Facebook Business, analise métricas e otimize suas campanhas de marketing.
+              "Por que as vendas caíram?" — a IA analisa GA4, Meta e pedidos e responde.
             </p>
             <Button asChild className="w-full">
-              <Link href="/marketing">
-                Acessar Marketing
+              <Link href="/ia">
+                Perguntar à IA
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>

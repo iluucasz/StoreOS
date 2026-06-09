@@ -16,7 +16,7 @@ export default function FacebookAdsPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start mb-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Button variant="ghost" size="sm" asChild>
@@ -26,13 +26,13 @@ export default function FacebookAdsPage() {
               </Link>
             </Button>
           </div>
-          <h1 className="text-3xl font-bold flex items-center">
-            <Facebook className="mr-2 h-6 w-6 text-[#4267B2]" />
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center">
+            <Facebook className="mr-2 h-6 w-6 text-[#4267B2] shrink-0" />
             Facebook Ads
           </h1>
           <p className="text-muted-foreground">Gerencie suas campanhas do Facebook Ads</p>
         </div>
-        <div>
+        <div className="shrink-0">
           {isConnected ? (
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 text-green-600">
@@ -53,13 +53,15 @@ export default function FacebookAdsPage() {
       </div>
 
       <Tabs defaultValue="dashboard" className="mt-6">
-        <TabsList className="grid grid-cols-5 w-full">
+        <div className="overflow-x-auto">
+        <TabsList className="w-max min-w-full grid grid-cols-5">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="campaigns">Campanhas</TabsTrigger>
           <TabsTrigger value="audiences">Públicos</TabsTrigger>
           <TabsTrigger value="pixel">Pixel</TabsTrigger>
           <TabsTrigger value="integration">Integração</TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="dashboard" className="mt-6">
           <FacebookDashboard isConnected={isConnected} />

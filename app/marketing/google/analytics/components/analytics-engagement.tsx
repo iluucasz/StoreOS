@@ -166,7 +166,7 @@ export function AnalyticsEngagement({ isConnected }: AnalyticsEngagementProps) {
                 >
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip formatter={(value) => [value.toLocaleString(), "Sessões"]} />
+                  <Tooltip formatter={(value) => [Number(value ?? 0).toLocaleString(), "Sessões"]} />
                   <Bar dataKey="value" fill="#F4B400" name="Sessões" />
                 </BarChart>
               </ResponsiveContainer>

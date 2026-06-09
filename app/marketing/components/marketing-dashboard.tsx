@@ -64,14 +64,14 @@ export function MarketingDashboard({ integrations }: MarketingDashboardProps) {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="spend">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
               <TabsTrigger value="spend">Gastos</TabsTrigger>
               <TabsTrigger value="conversions">Conversões</TabsTrigger>
               <TabsTrigger value="cpa">CPA</TabsTrigger>
               <TabsTrigger value="roas">ROAS</TabsTrigger>
             </TabsList>
             <TabsContent value="spend" className="mt-4">
-              <div className="h-80">
+              <div className="h-52 md:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={[
@@ -98,7 +98,7 @@ export function MarketingDashboard({ integrations }: MarketingDashboardProps) {
               </div>
             </TabsContent>
             <TabsContent value="conversions" className="mt-4">
-              <div className="h-80">
+              <div className="h-52 md:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={[
@@ -124,7 +124,7 @@ export function MarketingDashboard({ integrations }: MarketingDashboardProps) {
               </div>
             </TabsContent>
             <TabsContent value="cpa" className="mt-4">
-              <div className="h-80">
+              <div className="h-52 md:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={[
@@ -150,7 +150,7 @@ export function MarketingDashboard({ integrations }: MarketingDashboardProps) {
               </div>
             </TabsContent>
             <TabsContent value="roas" className="mt-4">
-              <div className="h-80">
+              <div className="h-52 md:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={[
@@ -248,7 +248,7 @@ export function MarketingDashboard({ integrations }: MarketingDashboardProps) {
               <TabsTrigger value="roas">ROAS</TabsTrigger>
             </TabsList>
             <TabsContent value="funnel" className="mt-4">
-              <div className="h-80">
+              <div className="h-52 md:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={conversionData.funnel} layout="vertical">
                     <XAxis type="number" />
@@ -260,7 +260,7 @@ export function MarketingDashboard({ integrations }: MarketingDashboardProps) {
               </div>
             </TabsContent>
             <TabsContent value="cpa" className="mt-4">
-              <div className="h-80">
+              <div className="h-52 md:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={conversionData.cpaOverTime}>
                     <XAxis dataKey="date" />
@@ -272,7 +272,7 @@ export function MarketingDashboard({ integrations }: MarketingDashboardProps) {
               </div>
             </TabsContent>
             <TabsContent value="roas" className="mt-4">
-              <div className="h-80">
+              <div className="h-52 md:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={conversionData.roasOverTime}>
                     <XAxis dataKey="date" />

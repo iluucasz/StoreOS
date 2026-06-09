@@ -5,11 +5,27 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 
 interface Settings {
+  // Precificação
   shippingCost: number
   marketingBudget: number
   packagingCost: number
   paymentFeePercentage: number
   expectedMonthlySales: number
+
+  // Perfil da Loja
+  storeName: string
+  storeCNPJ: string
+  storeEmail: string
+
+  // Integrações
+  shopifyStoreUrl: string
+  shopifyAccessToken: string
+  whatsappPhoneNumber: string
+  whatsappApiKey: string
+
+  // Alertas
+  lowStockThreshold: number
+  maxCACAlert: number
 }
 
 interface SettingsContextType {
@@ -23,23 +39,31 @@ const defaultSettings: Settings = {
   packagingCost: 0.6,
   paymentFeePercentage: 5,
   expectedMonthlySales: 50,
+
+  storeName: "",
+  storeCNPJ: "",
+  storeEmail: "",
+
+  shopifyStoreUrl: "",
+  shopifyAccessToken: "",
+  whatsappPhoneNumber: "",
+  whatsappApiKey: "",
+
+  lowStockThreshold: 5,
+  maxCACAlert: 50,
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined)
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(() => {
-    // Try to load settings from localStorage during initialization
     if (typeof window !== "undefined") {
-      const savedSettings = localStorage.getItem("pricingSettings")
-      if (savedSettings) {
-        return JSON.parse(savedSettings)
-      }
+      const saved = localStorage.getItem("pricingSettings")
+      if (saved) return { ...defaultSettings, ...JSON.parse(saved) }
     }
     return defaultSettings
   })
 
-  // Save settings to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem("pricingSettings", JSON.stringify(settings))
   }, [settings])
@@ -49,12 +73,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <SettingsContext.Provider
-      value={{
-        settings,
-        updateSettings,
-      }}
-    >
+    <SettingsContext.Provider value={{ settings, updateSettings }}>
       {children}
     </SettingsContext.Provider>
   )

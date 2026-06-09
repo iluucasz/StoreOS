@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Edit, Trash2, Plus, Search, Facebook } from "lucide-react"
+import { Edit, Trash2, Plus, Search, Facebook, Download } from "lucide-react"
+import { downloadCSV } from "@/lib/export-csv"
 import { ProductDialog } from "./product-dialog"
 import { DeleteProductDialog } from "./delete-product-dialog"
 import { toast } from "@/components/ui/use-toast"
-import { useProducts } from "@/contexts/products-context"
+import { useProducts, getProductStock } from "@/contexts/products-context"
 import { formatCurrency } from "@/lib/utils"
 import Link from "next/link"
 
@@ -99,9 +100,24 @@ export function ProductsTable() {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Produtos Cadastrados</CardTitle>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => downloadCSV("produtos.csv", filteredProducts.map(p => ({
+                "Nome": p.name,
+                "Custo (R$)": p.cost,
+                "Preço (R$)": p.price,
+                "Margem (%)": p.margin,
+                "Estoque": getProductStock(p),
+                "Variantes": p.variants?.length ?? 0,
+              })))}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exportar
+            </Button>
             <Button size="sm" variant="outline" asChild>
               <Link href="/marketing">
                 <Facebook className="mr-2 h-4 w-4" />
@@ -127,14 +143,14 @@ export function ProductsTable() {
             </div>
           </div>
 
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead className="text-right">Custo</TableHead>
+                  <TableHead className="text-right hidden sm:table-cell">Custo</TableHead>
                   <TableHead className="text-right">Preço</TableHead>
-                  <TableHead className="text-right">Margem</TableHead>
+                  <TableHead className="text-right hidden sm:table-cell">Margem</TableHead>
                   <TableHead className="text-right">Estoque</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -144,10 +160,15 @@ export function ProductsTable() {
                   filteredProducts.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(product.cost)}</TableCell>
+                      <TableCell className="text-right hidden sm:table-cell">{formatCurrency(product.cost)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(product.price)}</TableCell>
-                      <TableCell className="text-right">{product.margin}%</TableCell>
-                      <TableCell className="text-right">{product.stock}</TableCell>
+                      <TableCell className="text-right hidden sm:table-cell">{product.margin}%</TableCell>
+                      <TableCell className="text-right">
+                        <div>{getProductStock(product)}</div>
+                        {product.variants?.length > 0 && (
+                          <div className="text-xs text-muted-foreground">{product.variants.length} var.</div>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
                           <Button variant="ghost" size="icon" onClick={() => handleEditProduct(product)}>
@@ -178,14 +199,14 @@ export function ProductsTable() {
           <CardTitle>Métricas de Marketing por Produto</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Campanha</TableHead>
                   <TableHead className="text-right">Gasto</TableHead>
-                  <TableHead className="text-right">Conversões</TableHead>
-                  <TableHead className="text-right">CPA</TableHead>
+                  <TableHead className="text-right hidden sm:table-cell">Conversões</TableHead>
+                  <TableHead className="text-right hidden sm:table-cell">CPA</TableHead>
                   <TableHead className="text-right">ROAS</TableHead>
                 </TableRow>
               </TableHeader>
@@ -194,8 +215,8 @@ export function ProductsTable() {
                   <TableRow key={campaign.id}>
                     <TableCell className="font-medium">{campaign.name}</TableCell>
                     <TableCell className="text-right">{formatCurrency(campaign.spend)}</TableCell>
-                    <TableCell className="text-right">{campaign.conversions}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(campaign.cpa)}</TableCell>
+                    <TableCell className="text-right hidden sm:table-cell">{campaign.conversions}</TableCell>
+                    <TableCell className="text-right hidden sm:table-cell">{formatCurrency(campaign.cpa)}</TableCell>
                     <TableCell className="text-right">{campaign.roas.toFixed(2)}x</TableCell>
                   </TableRow>
                 ))}

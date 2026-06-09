@@ -12,184 +12,165 @@ import { toast } from "@/components/ui/use-toast"
 export function Settings() {
   const { settings, updateSettings } = useSettings()
 
-  const [formData, setFormData] = useState({
-    shippingCost: settings.shippingCost,
-    marketingBudget: settings.marketingBudget,
-    packagingCost: settings.packagingCost,
-    paymentFeePercentage: settings.paymentFeePercentage,
-    expectedMonthlySales: settings.expectedMonthlySales,
-  })
+  const [form, setForm] = useState({ ...settings })
 
-  const handleChange = (field: string, value: number) => {
-    setFormData({
-      ...formData,
-      [field]: value,
-    })
+  function set(field: string, value: string | number) {
+    setForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSaveSettings = () => {
-    updateSettings(formData)
-    toast({
-      title: "Configurações salvas",
-      description: "Suas configurações foram atualizadas com sucesso.",
-    })
+  function save() {
+    updateSettings(form)
+    toast({ title: "Configurações salvas", description: "Alterações aplicadas com sucesso." })
   }
 
-  const handleResetSettings = () => {
-    const defaultSettings = {
-      shippingCost: 30,
-      marketingBudget: 300,
-      packagingCost: 0.6,
-      paymentFeePercentage: 5,
-      expectedMonthlySales: 50,
+  function reset() {
+    const defaults = {
+      shippingCost: 30, marketingBudget: 300, packagingCost: 0.6,
+      paymentFeePercentage: 5, expectedMonthlySales: 50,
+      storeName: "", storeCNPJ: "", storeEmail: "",
+      shopifyStoreUrl: "", shopifyAccessToken: "",
+      whatsappPhoneNumber: "", whatsappApiKey: "",
+      lowStockThreshold: 5, maxCACAlert: 50,
     }
-
-    setFormData(defaultSettings)
-    updateSettings(defaultSettings)
-
-    toast({
-      title: "Configurações resetadas",
-      description: "Suas configurações foram restauradas para os valores padrão.",
-    })
+    setForm(defaults as typeof form)
+    updateSettings(defaults)
+    toast({ title: "Resetado", description: "Configurações restauradas para os padrões." })
   }
 
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="costs" className="w-full">
-        <TabsList className="grid grid-cols-4">
-          <TabsTrigger value="costs">Custos</TabsTrigger>
-          <TabsTrigger value="account">Conta</TabsTrigger>
-          <TabsTrigger value="privacy">Privacidade</TabsTrigger>
-          <TabsTrigger value="security">Segurança</TabsTrigger>
-        </TabsList>
+    <div className="space-y-4">
+      <Tabs defaultValue="geral" className="w-full">
+        <div className="overflow-x-auto">
+          <TabsList className="w-max min-w-full grid grid-cols-4">
+            <TabsTrigger value="geral">Geral</TabsTrigger>
+            <TabsTrigger value="precificacao">Precificação</TabsTrigger>
+            <TabsTrigger value="integracoes">Integrações</TabsTrigger>
+            <TabsTrigger value="alertas">Alertas</TabsTrigger>
+          </TabsList>
+        </div>
 
-        <TabsContent value="costs" className="space-y-4 mt-4">
+        {/* Geral */}
+        <TabsContent value="geral" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Configurações de Custos</CardTitle>
-              <CardDescription>Configure os parâmetros de custo para cálculos de precificação</CardDescription>
+              <CardTitle>Perfil da Loja</CardTitle>
+              <CardDescription>Informações básicas do seu negócio</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="shipping-cost">Custo de Frete (R$)</Label>
-                <Input
-                  id="shipping-cost"
-                  type="number"
-                  min="0"
-                  value={formData.shippingCost}
-                  onChange={(e) => handleChange("shippingCost", Number.parseFloat(e.target.value))}
-                />
-                <p className="text-xs text-muted-foreground">Custo médio de frete por lote de produtos</p>
+                <Label htmlFor="storeName">Nome da Loja</Label>
+                <Input id="storeName" placeholder="Minha Loja" value={form.storeName} onChange={(e) => set("storeName", e.target.value)} />
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="marketing-budget">Orçamento de Marketing Mensal (R$)</Label>
-                <Input
-                  id="marketing-budget"
-                  type="number"
-                  min="0"
-                  value={formData.marketingBudget}
-                  onChange={(e) => handleChange("marketingBudget", Number.parseFloat(e.target.value))}
-                />
-                <p className="text-xs text-muted-foreground">Valor mensal investido em marketing (Meta Ads, etc.)</p>
+                <Label htmlFor="storeCNPJ">CNPJ</Label>
+                <Input id="storeCNPJ" placeholder="00.000.000/0001-00" value={form.storeCNPJ} onChange={(e) => set("storeCNPJ", e.target.value)} />
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="packaging-cost">Custo de Embalagem por Produto (R$)</Label>
-                <Input
-                  id="packaging-cost"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.packagingCost}
-                  onChange={(e) => handleChange("packagingCost", Number.parseFloat(e.target.value))}
-                />
-                <p className="text-xs text-muted-foreground">Custo médio de embalagem por produto</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="payment-fee">Taxa de Pagamento (%)</Label>
-                <Input
-                  id="payment-fee"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={formData.paymentFeePercentage}
-                  onChange={(e) => handleChange("paymentFeePercentage", Number.parseFloat(e.target.value))}
-                />
-                <p className="text-xs text-muted-foreground">Percentual cobrado pelo processador de pagamento</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="expected-sales">Vendas Mensais Esperadas</Label>
-                <Input
-                  id="expected-sales"
-                  type="number"
-                  min="1"
-                  value={formData.expectedMonthlySales}
-                  onChange={(e) => handleChange("expectedMonthlySales", Number.parseInt(e.target.value))}
-                />
-                <p className="text-xs text-muted-foreground">Quantidade estimada de vendas mensais</p>
+                <Label htmlFor="storeEmail">E-mail de Contato</Label>
+                <Input id="storeEmail" type="email" placeholder="contato@minhaloja.com" value={form.storeEmail} onChange={(e) => set("storeEmail", e.target.value)} />
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={handleResetSettings}>
-                Resetar
-              </Button>
-              <Button onClick={handleSaveSettings}>Salvar Configurações</Button>
+              <Button variant="outline" onClick={reset}>Resetar</Button>
+              <Button onClick={save}>Salvar</Button>
             </CardFooter>
           </Card>
         </TabsContent>
 
-        <TabsContent value="account" className="space-y-4 mt-4">
+        {/* Precificação */}
+        <TabsContent value="precificacao" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Configurações da Conta</CardTitle>
-              <CardDescription>Gerencie suas informações de conta</CardDescription>
+              <CardTitle>Parâmetros de Precificação</CardTitle>
+              <CardDescription>Defaults usados no calculador de preços</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Nome</Label>
-                <Input id="name" defaultValue="Usuário" />
+                <Label htmlFor="shippingCost">Frete de Entrada médio (R$)</Label>
+                <Input id="shippingCost" type="number" min="0" value={form.shippingCost} onChange={(e) => set("shippingCost", Number(e.target.value))} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue="usuario@exemplo.com" />
+                <Label htmlFor="packagingCost">Embalagem por Produto (R$)</Label>
+                <Input id="packagingCost" type="number" min="0" step="0.01" value={form.packagingCost} onChange={(e) => set("packagingCost", Number(e.target.value))} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="paymentFeePercentage">Taxa de Pagamento (%)</Label>
+                <Input id="paymentFeePercentage" type="number" min="0" max="100" step="0.1" value={form.paymentFeePercentage} onChange={(e) => set("paymentFeePercentage", Number(e.target.value))} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="marketingBudget">Budget de Marketing Mensal (R$)</Label>
+                <Input id="marketingBudget" type="number" min="0" value={form.marketingBudget} onChange={(e) => set("marketingBudget", Number(e.target.value))} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="expectedMonthlySales">Vendas Mensais Esperadas</Label>
+                <Input id="expectedMonthlySales" type="number" min="1" value={form.expectedMonthlySales} onChange={(e) => set("expectedMonthlySales", Number(e.target.value))} />
               </div>
             </CardContent>
-            <CardFooter>
-              <Button>Salvar Alterações</Button>
+            <CardFooter className="flex justify-between">
+              <Button variant="outline" onClick={reset}>Resetar</Button>
+              <Button onClick={save}>Salvar</Button>
             </CardFooter>
           </Card>
         </TabsContent>
 
-        <TabsContent value="privacy" className="space-y-4 mt-4">
+        {/* Integrações */}
+        <TabsContent value="integracoes" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Configurações de Privacidade</CardTitle>
-              <CardDescription>Gerencie suas configurações de privacidade</CardDescription>
+              <CardTitle>Tokens de Integração</CardTitle>
+              <CardDescription>Credenciais para Shopify e WhatsApp Business</CardDescription>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Suas informações são armazenadas localmente e não são compartilhadas com terceiros.
-              </p>
+            <CardContent className="space-y-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Shopify</p>
+              <div className="space-y-2">
+                <Label htmlFor="shopifyStoreUrl">URL da Loja Shopify</Label>
+                <Input id="shopifyStoreUrl" placeholder="minha-loja.myshopify.com" value={form.shopifyStoreUrl} onChange={(e) => set("shopifyStoreUrl", e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="shopifyAccessToken">Access Token</Label>
+                <Input id="shopifyAccessToken" type="password" placeholder="shpat_..." value={form.shopifyAccessToken} onChange={(e) => set("shopifyAccessToken", e.target.value)} />
+              </div>
+
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">WhatsApp</p>
+              <div className="space-y-2">
+                <Label htmlFor="whatsappPhoneNumber">Número do WhatsApp Business</Label>
+                <Input id="whatsappPhoneNumber" placeholder="+55 11 99999-0000" value={form.whatsappPhoneNumber} onChange={(e) => set("whatsappPhoneNumber", e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="whatsappApiKey">API Key</Label>
+                <Input id="whatsappApiKey" type="password" placeholder="EAABxxxxxx..." value={form.whatsappApiKey} onChange={(e) => set("whatsappApiKey", e.target.value)} />
+              </div>
             </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button variant="outline" onClick={reset}>Resetar</Button>
+              <Button onClick={save}>Salvar</Button>
+            </CardFooter>
           </Card>
         </TabsContent>
 
-        <TabsContent value="security" className="space-y-4 mt-4">
+        {/* Alertas */}
+        <TabsContent value="alertas" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Configurações de Segurança</CardTitle>
-              <CardDescription>Gerencie suas configurações de segurança</CardDescription>
+              <CardTitle>Limites e Alertas</CardTitle>
+              <CardDescription>Configure thresholds para notificações automáticas</CardDescription>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Esta aplicação funciona localmente no seu navegador. Nenhuma informação é enviada para servidores
-                externos.
-              </p>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="lowStockThreshold">Alerta de Estoque Baixo (unidades)</Label>
+                <Input id="lowStockThreshold" type="number" min="1" value={form.lowStockThreshold} onChange={(e) => set("lowStockThreshold", Number(e.target.value))} />
+                <p className="text-xs text-muted-foreground">Alerta quando estoque for menor ou igual a esse valor</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="maxCACAlert">Alerta de CAC Máximo (R$)</Label>
+                <Input id="maxCACAlert" type="number" min="1" value={form.maxCACAlert} onChange={(e) => set("maxCACAlert", Number(e.target.value))} />
+                <p className="text-xs text-muted-foreground">Alerta quando o CAC ultrapassar esse valor</p>
+              </div>
             </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button variant="outline" onClick={reset}>Resetar</Button>
+              <Button onClick={save}>Salvar</Button>
+            </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>

@@ -18,7 +18,7 @@ export default function GoogleAnalyticsPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start mb-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Button variant="ghost" size="sm" asChild>
@@ -28,13 +28,13 @@ export default function GoogleAnalyticsPage() {
               </Link>
             </Button>
           </div>
-          <h1 className="text-3xl font-bold flex items-center">
-            <Activity className="mr-2 h-6 w-6 text-[#F4B400]" />
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center">
+            <Activity className="mr-2 h-6 w-6 text-[#F4B400] shrink-0" />
             Google Analytics
           </h1>
           <p className="text-muted-foreground">Analise o desempenho do seu site com Google Analytics 4</p>
         </div>
-        <div>
+        <div className="shrink-0">
           {isConnected ? (
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 text-green-600">
@@ -55,7 +55,8 @@ export default function GoogleAnalyticsPage() {
       </div>
 
       <Tabs defaultValue="dashboard" className="mt-6">
-        <TabsList className="grid grid-cols-7 w-full">
+        <div className="overflow-x-auto">
+        <TabsList className="w-max min-w-full grid grid-cols-7">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="acquisition">Aquisição</TabsTrigger>
           <TabsTrigger value="engagement">Engajamento</TabsTrigger>
@@ -64,6 +65,7 @@ export default function GoogleAnalyticsPage() {
           <TabsTrigger value="realtime">Tempo Real</TabsTrigger>
           <TabsTrigger value="integration">Integração</TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="dashboard" className="mt-6">
           <AnalyticsDashboard isConnected={isConnected} />

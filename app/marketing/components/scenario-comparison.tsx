@@ -264,7 +264,7 @@ export function ScenarioComparison() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
-                    <Tooltip formatter={(value) => `${value.toFixed(2)}%`} />
+                    <Tooltip formatter={(value) => `${Number(value ?? 0).toFixed(2)}%`} />
                     <Legend />
                     {scenariosWithMetrics.map((scenario, index) => (
                       <Bar
@@ -292,7 +292,7 @@ export function ScenarioComparison() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis label={{ value: "Taxa de Conversão (%)", angle: -90, position: "insideLeft" }} />
-                    <Tooltip formatter={(value) => `${value.toFixed(2)}%`} />
+                    <Tooltip formatter={(value) => `${Number(value ?? 0).toFixed(2)}%`} />
                     <Legend />
                     <Bar dataKey="actual" name="Taxa Atual" fill="#3b82f6" />
                     <Bar dataKey="breakeven" name="Taxa de Equilíbrio" fill="#ef4444" />

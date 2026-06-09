@@ -84,14 +84,13 @@ export function FacebookIntegration({
                     </div>
                     <select
                       id="sync-interval"
+                      defaultValue="24h"
                       className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                     >
                       <option value="1h">A cada hora</option>
                       <option value="6h">A cada 6 horas</option>
                       <option value="12h">A cada 12 horas</option>
-                      <option value="24h" selected>
-                        Diariamente
-                      </option>
+                      <option value="24h">Diariamente</option>
                     </select>
                   </div>
                 </div>

@@ -16,7 +16,7 @@ export default function GoogleAdsPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start mb-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Button variant="ghost" size="sm" asChild>
@@ -26,13 +26,13 @@ export default function GoogleAdsPage() {
               </Link>
             </Button>
           </div>
-          <h1 className="text-3xl font-bold flex items-center">
-            <BarChart4 className="mr-2 h-6 w-6 text-[#DB4437]" />
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center">
+            <BarChart4 className="mr-2 h-6 w-6 text-[#DB4437] shrink-0" />
             Google Ads
           </h1>
           <p className="text-muted-foreground">Gerencie suas campanhas do Google Ads</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           {isConnected ? (
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 text-green-600">
@@ -53,13 +53,15 @@ export default function GoogleAdsPage() {
       </div>
 
       <Tabs defaultValue="dashboard" className="mt-6">
-        <TabsList className="grid grid-cols-5 w-full">
+        <div className="overflow-x-auto">
+        <TabsList className="w-max min-w-full grid grid-cols-5">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="campaigns">Campanhas</TabsTrigger>
           <TabsTrigger value="keywords">Palavras-chave</TabsTrigger>
           <TabsTrigger value="conversions">Conversões</TabsTrigger>
           <TabsTrigger value="integration">Integração</TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="dashboard" className="mt-6">
           <GoogleAdsDashboard isConnected={isConnected} />
