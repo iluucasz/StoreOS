@@ -1,110 +1,163 @@
 "use client"
 
+import type React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, LineChart, Line } from "recharts"
-import { AlertCircle } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from "recharts"
+import { ArrowDown, ArrowUp, DollarSign, ShoppingCart, TrendingUp, Target } from "lucide-react"
+import { formatCurrency } from "@/lib/utils"
+import { useMetaData, NotConnected, LoadingState, ErrorState } from "./meta-helpers"
 
-// Dados mockados para o dashboard
-const performanceData = [
-  { name: "Jan", impressions: 120000, clicks: 3200, ctr: 2.67 },
-  { name: "Fev", impressions: 140000, clicks: 3800, ctr: 2.71 },
-  { name: "Mar", impressions: 160000, clicks: 4300, ctr: 2.69 },
-  { name: "Abr", impressions: 180000, clicks: 4900, ctr: 2.72 },
-  { name: "Mai", impressions: 200000, clicks: 5400, ctr: 2.7 },
-  { name: "Jun", impressions: 220000, clicks: 6000, ctr: 2.73 },
-]
-
-const campaignData = [
-  { name: "Campanha 1", impressions: 85000, clicks: 2300, conversions: 120, cpa: 18.5 },
-  { name: "Campanha 2", impressions: 65000, clicks: 1800, conversions: 95, cpa: 22.1 },
-  { name: "Campanha 3", impressions: 45000, clicks: 1200, conversions: 65, cpa: 25.4 },
-  { name: "Campanha 4", impressions: 35000, clicks: 950, conversions: 48, cpa: 28.7 },
-]
+type DashboardData = {
+  totals: {
+    spend: number
+    purchases: number
+    revenue: number
+    roas: number
+    cpa: number
+    ctr: number
+    cpc: number
+    impressions: number
+    reach: number
+    clicks: number
+    spendDelta: number
+    purchasesDelta: number
+    roasDelta: number
+    cpaDelta: number
+  }
+  series: { date: string; spend: number; clicks: number; purchases: number }[]
+  platforms: { name: string; spend: number; clicks: number; purchases: number }[]
+}
 
 export function FacebookDashboard({ isConnected }: { isConnected: boolean }) {
-  if (!isConnected) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Não conectado</AlertTitle>
-        <AlertDescription>Conecte-se ao Facebook Ads para visualizar o dashboard.</AlertDescription>
-      </Alert>
-    )
-  }
+  const { data, loading, error } = useMetaData<DashboardData>("/api/meta-ads/dashboard", isConnected)
+
+  if (!isConnected) return <NotConnected what="o dashboard" />
+  if (loading) return <LoadingState />
+  if (error) return <ErrorState message={error} />
+  if (!data) return null
+
+  const { totals, series, platforms } = data
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      <Card className="col-span-full">
-        <CardHeader>
-          <CardTitle>Desempenho Geral</CardTitle>
-          <CardDescription>Impressões e cliques nos últimos 6 meses</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={performanceData}>
-              <XAxis dataKey="name" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
-              <Tooltip />
-              <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="impressions" stroke="#8884d8" name="Impressões" />
-              <Line yAxisId="right" type="monotone" dataKey="clicks" stroke="#82ca9d" name="Cliques" />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <MetricCard title="Gasto (7d)" value={formatCurrency(totals.spend)} delta={totals.spendDelta} goodDirection="down" icon={<DollarSign className="h-4 w-4" />} />
+        <MetricCard title="Compras" value={totals.purchases.toLocaleString("pt-BR")} delta={totals.purchasesDelta} goodDirection="up" icon={<ShoppingCart className="h-4 w-4" />} />
+        <MetricCard title="ROAS" value={`${totals.roas.toFixed(2)}x`} delta={totals.roasDelta} goodDirection="up" icon={<TrendingUp className="h-4 w-4" />} />
+        <MetricCard title="Custo/Compra" value={formatCurrency(totals.cpa)} delta={totals.cpaDelta} goodDirection="down" icon={<Target className="h-4 w-4" />} />
+      </div>
 
-      <Card className="col-span-full md:col-span-2">
-        <CardHeader>
-          <CardTitle>Desempenho por Campanha</CardTitle>
-          <CardDescription>Impressões, cliques e conversões por campanha</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={campaignData}>
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="impressions" fill="#8884d8" name="Impressões" />
-              <Bar dataKey="clicks" fill="#82ca9d" name="Cliques" />
-              <Bar dataKey="conversions" fill="#ffc658" name="Conversões" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Desempenho ao Longo do Tempo</CardTitle>
+            <CardDescription>Gasto e compras nos últimos 14 dias</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={series}>
+                  <XAxis dataKey="date" />
+                  <YAxis yAxisId="left" stroke="#0866FF" />
+                  <YAxis yAxisId="right" orientation="right" stroke="#10b981" />
+                  <Tooltip />
+                  <Line yAxisId="left" type="monotone" dataKey="spend" stroke="#0866FF" name="Gasto (R$)" strokeWidth={2} />
+                  <Line yAxisId="right" type="monotone" dataKey="purchases" stroke="#10b981" name="Compras" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Métricas Principais</CardTitle>
+            <CardDescription>Resumo dos últimos 7 dias</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 text-sm">
+              <Row label="Impressões" value={totals.impressions.toLocaleString("pt-BR")} />
+              <Row label="Alcance" value={totals.reach.toLocaleString("pt-BR")} />
+              <Row label="Cliques" value={totals.clicks.toLocaleString("pt-BR")} />
+              <Row label="CTR" value={`${totals.ctr.toFixed(2)}%`} />
+              <Row label="CPC" value={formatCurrency(totals.cpc)} />
+              <Row label="Receita" value={formatCurrency(totals.revenue)} />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Métricas Principais</CardTitle>
-          <CardDescription>Resumo do desempenho atual</CardDescription>
+          <CardTitle>Por Plataforma</CardTitle>
+          <CardDescription>Gasto e compras por plataforma — Facebook vs Instagram (7 dias)</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">CTR Médio</span>
-              <span className="font-medium">2.71%</span>
+          {platforms.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Sem dados por plataforma no período.</p>
+          ) : (
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={platforms}>
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="spend" fill="#0866FF" name="Gasto (R$)" />
+                  <Bar dataKey="purchases" fill="#E4405F" name="Compras" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">CPC Médio</span>
-              <span className="font-medium">R$ 0.87</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Conversões</span>
-              <span className="font-medium">328</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Custo por Conversão</span>
-              <span className="font-medium">R$ 22.45</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">ROAS</span>
-              <span className="font-medium">3.2x</span>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
+  )
+}
+
+function MetricCard({
+  title,
+  value,
+  delta,
+  goodDirection,
+  icon,
+}: {
+  title: string
+  value: string
+  delta: number
+  goodDirection: "up" | "down"
+  icon: React.ReactNode
+}) {
+  const isUp = delta > 0
+  const isGood = delta === 0 ? true : isUp ? goodDirection === "up" : goodDirection === "down"
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        <p className="mt-1 flex items-center text-xs text-muted-foreground">
+          {delta !== 0 &&
+            (isUp ? (
+              <ArrowUp className={`mr-1 h-3 w-3 ${isGood ? "text-green-500" : "text-red-500"}`} />
+            ) : (
+              <ArrowDown className={`mr-1 h-3 w-3 ${isGood ? "text-green-500" : "text-red-500"}`} />
+            ))}
+          {delta > 0 ? "+" : ""}
+          {delta}% vs. período anterior
+        </p>
+      </CardContent>
+    </Card>
   )
 }

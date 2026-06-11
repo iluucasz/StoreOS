@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Facebook, Check, ArrowLeft } from "lucide-react"
+import { Check, ArrowLeft, Loader2 } from "lucide-react"
+import { MetaIcon } from "@/components/brand-icons"
 import { FacebookDashboard } from "./components/facebook-dashboard"
 import { FacebookCampaigns } from "./components/facebook-campaigns"
 import { FacebookAudiences } from "./components/facebook-audiences"
@@ -11,8 +12,40 @@ import { FacebookPixel } from "./components/facebook-pixel"
 import { FacebookIntegration } from "./components/facebook-integration"
 import Link from "next/link"
 
-export default function FacebookAdsPage() {
-  const [isConnected, setIsConnected] = useState(false)
+export type MetaStatus = {
+  loading: boolean
+  configured: boolean
+  connected: boolean
+  error?: string
+  account?: { name?: string; currency?: string } | null
+}
+
+export default function MetaAdsPage() {
+  const [tab, setTab] = useState("dashboard")
+  const [status, setStatus] = useState<MetaStatus>({ loading: true, configured: false, connected: false })
+
+  const checkStatus = useCallback(async () => {
+    setStatus((s) => ({ ...s, loading: true }))
+    try {
+      const res = await fetch("/api/meta-ads/test", { cache: "no-store" })
+      const json = await res.json()
+      setStatus({
+        loading: false,
+        configured: !!json.configured,
+        connected: !!json.connected,
+        error: json.error,
+        account: json.account,
+      })
+    } catch {
+      setStatus({ loading: false, configured: false, connected: false, error: "Falha ao verificar conexão" })
+    }
+  }, [])
+
+  useEffect(() => {
+    checkStatus()
+  }, [checkStatus])
+
+  const isConnected = status.connected
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
@@ -27,60 +60,58 @@ export default function FacebookAdsPage() {
             </Button>
           </div>
           <h1 className="text-2xl md:text-3xl font-bold flex items-center">
-            <Facebook className="mr-2 h-6 w-6 text-[#4267B2] shrink-0" />
-            Facebook Ads
+            <MetaIcon className="mr-2 h-6 w-6 text-[#0866FF] shrink-0" />
+            Meta Ads
           </h1>
-          <p className="text-muted-foreground">Gerencie suas campanhas do Facebook Ads</p>
+          <p className="text-muted-foreground">
+            {status.account?.name ? `Conta: ${status.account.name}` : "Facebook e Instagram Ads em uma tela"}
+          </p>
         </div>
         <div className="shrink-0">
-          {isConnected ? (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 text-green-600">
-                <Check className="h-4 w-4" />
-                <span className="text-sm font-medium">Conectado</span>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setIsConnected(false)}>
-                Desconectar
-              </Button>
+          {status.loading ? (
+            <div className="flex items-center gap-1 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Verificando...
+            </div>
+          ) : isConnected ? (
+            <div className="flex items-center gap-1 text-green-600">
+              <Check className="h-4 w-4" />
+              <span className="text-sm font-medium">Conectado</span>
             </div>
           ) : (
-            <Button onClick={() => setIsConnected(true)}>
-              <Facebook className="mr-2 h-4 w-4" />
-              Conectar ao Facebook
+            <Button onClick={() => setTab("integration")}>
+              <MetaIcon className="mr-2 h-4 w-4" />
+              Configurar integração
             </Button>
           )}
         </div>
       </div>
 
-      <Tabs defaultValue="dashboard" className="mt-6">
+      <Tabs value={tab} onValueChange={setTab} className="mt-6">
         <div className="overflow-x-auto">
-        <TabsList className="w-max min-w-full grid grid-cols-5">
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          <TabsTrigger value="campaigns">Campanhas</TabsTrigger>
-          <TabsTrigger value="audiences">Públicos</TabsTrigger>
-          <TabsTrigger value="pixel">Pixel</TabsTrigger>
-          <TabsTrigger value="integration">Integração</TabsTrigger>
-        </TabsList>
+          <TabsList className="w-max min-w-full grid grid-cols-5">
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="campaigns">Campanhas</TabsTrigger>
+            <TabsTrigger value="audiences">Demografia</TabsTrigger>
+            <TabsTrigger value="pixel">Conversões</TabsTrigger>
+            <TabsTrigger value="integration">Integração</TabsTrigger>
+          </TabsList>
         </div>
 
         <TabsContent value="dashboard" className="mt-6">
           <FacebookDashboard isConnected={isConnected} />
         </TabsContent>
-
         <TabsContent value="campaigns" className="mt-6">
           <FacebookCampaigns isConnected={isConnected} />
         </TabsContent>
-
         <TabsContent value="audiences" className="mt-6">
           <FacebookAudiences isConnected={isConnected} />
         </TabsContent>
-
         <TabsContent value="pixel" className="mt-6">
           <FacebookPixel isConnected={isConnected} />
         </TabsContent>
-
         <TabsContent value="integration" className="mt-6">
-          <FacebookIntegration isConnected={isConnected} setIsConnected={setIsConnected} />
+          <FacebookIntegration status={status} onRecheck={checkStatus} />
         </TabsContent>
       </Tabs>
     </div>

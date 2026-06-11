@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
@@ -12,7 +13,7 @@ export function ChatMarkdown({ content }: { content: string }) {
         [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5
         [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5
         [&_li]:my-0.5
-        [&_strong]:font-semibold
+        [&_strong]:font-semibold [&_strong]:text-[#7c3aed]
         [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2
         [&_h1]:mb-1 [&_h1]:mt-3 [&_h1]:text-lg [&_h1]:font-bold
         [&_h2]:mb-1 [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-bold
@@ -29,11 +30,16 @@ export function ChatMarkdown({ content }: { content: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          a: ({ children, ...props }) => (
-            <a {...props} target="_blank" rel="noopener noreferrer">
-              {children}
-            </a>
-          ),
+          a: ({ children, href = "", title }) =>
+            href.startsWith("/") ? (
+              <Link href={href} title={title}>
+                {children}
+              </Link>
+            ) : (
+              <a href={href} title={title} target="_blank" rel="noopener noreferrer">
+                {children}
+              </a>
+            ),
         }}
       >
         {content}

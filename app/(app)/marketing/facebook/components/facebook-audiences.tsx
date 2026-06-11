@@ -2,158 +2,124 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { AlertCircle, Plus, Search } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
+import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { formatCurrency } from "@/lib/utils"
+import { useMetaData, NotConnected, LoadingState, ErrorState } from "./meta-helpers"
 
-// Dados mockados para públicos
-const audiencesData = [
-  {
-    id: 1,
-    name: "Visitantes do Site (30 dias)",
-    type: "Personalizado",
-    source: "Pixel",
-    size: 45000,
-    status: "Pronto",
-    lastUpdated: "Hoje",
-  },
-  {
-    id: 2,
-    name: "Compradores (90 dias)",
-    type: "Personalizado",
-    source: "Pixel",
-    size: 12500,
-    status: "Pronto",
-    lastUpdated: "Ontem",
-  },
-  {
-    id: 3,
-    name: "Público Semelhante - Compradores",
-    type: "Semelhante",
-    source: "Compradores (90 dias)",
-    size: 850000,
-    status: "Pronto",
-    lastUpdated: "3 dias atrás",
-  },
-  {
-    id: 4,
-    name: "Engajamento com Página",
-    type: "Personalizado",
-    source: "Facebook",
-    size: 28000,
-    status: "Pronto",
-    lastUpdated: "5 dias atrás",
-  },
-  {
-    id: 5,
-    name: "Lista de Emails - Newsletter",
-    type: "Personalizado",
-    source: "Lista de Clientes",
-    size: 8500,
-    status: "Em processamento",
-    lastUpdated: "Hoje",
-  },
-]
+const GENDER_COLORS = ["#0866FF", "#E4405F", "#9ca3af"]
+
+type DemographicsData = {
+  byAge: { name: string; spend: number }[]
+  byGender: { name: string; spend: number }[]
+  rows: { age: string; gender: string; spend: number; impressions: number; clicks: number; purchases: number }[]
+}
 
 export function FacebookAudiences({ isConnected }: { isConnected: boolean }) {
-  if (!isConnected) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Não conectado</AlertTitle>
-        <AlertDescription>Conecte-se ao Facebook Ads para visualizar os públicos.</AlertDescription>
-      </Alert>
-    )
-  }
+  const { data, loading, error } = useMetaData<DemographicsData>("/api/meta-ads/demographics", isConnected)
+
+  if (!isConnected) return <NotConnected what="a demografia" />
+  if (loading) return <LoadingState />
+  if (error) return <ErrorState message={error} />
+  if (!data) return null
+
+  const { byAge, byGender, rows } = data
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar públicos..." className="pl-8" />
-        </div>
-        <div className="flex gap-2">
-          <Button size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Público
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Gasto por Faixa Etária</CardTitle>
+            <CardDescription>Distribuição do investimento por idade (30 dias)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {byAge.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Sem dados no período.</p>
+            ) : (
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={byAge}>
+                    <XAxis dataKey="name" />
+                    <YAxis tickFormatter={(v) => `R$${v}`} />
+                    <Tooltip formatter={(v) => [formatCurrency(Number(v)), "Gasto"]} />
+                    <Bar dataKey="spend" fill="#0866FF" name="Gasto" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total de Públicos</CardTitle>
+          <CardHeader>
+            <CardTitle>Gasto por Gênero</CardTitle>
+            <CardDescription>Distribuição do investimento por gênero (30 dias)</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">5</div>
-            <p className="text-xs text-muted-foreground">+1 nos últimos 7 dias</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Alcance Potencial</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">944.000</div>
-            <p className="text-xs text-muted-foreground">Pessoas únicas</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Públicos Personalizados</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">4</div>
-            <p className="text-xs text-muted-foreground">80% do total</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Públicos Semelhantes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">1</div>
-            <p className="text-xs text-muted-foreground">20% do total</p>
+            {byGender.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Sem dados no período.</p>
+            ) : (
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={byGender}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={90}
+                      dataKey="spend"
+                      nameKey="name"
+                      label={({ name }) => name}
+                    >
+                      {byGender.map((_, i) => (
+                        <Cell key={i} fill={GENDER_COLORS[i % GENDER_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v) => [formatCurrency(Number(v)), "Gasto"]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Públicos</CardTitle>
-          <CardDescription>Gerencie seus públicos do Facebook Ads</CardDescription>
+          <CardTitle>Detalhe por Idade e Gênero</CardTitle>
+          <CardDescription>Desempenho segmentado (30 dias)</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Fonte</TableHead>
-                <TableHead>Tamanho</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Última Atualização</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {audiencesData.map((audience) => (
-                <TableRow key={audience.id}>
-                  <TableCell className="font-medium">{audience.name}</TableCell>
-                  <TableCell>{audience.type}</TableCell>
-                  <TableCell>{audience.source}</TableCell>
-                  <TableCell>{audience.size.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge variant={audience.status === "Pronto" ? "default" : "secondary"}>{audience.status}</Badge>
-                  </TableCell>
-                  <TableCell>{audience.lastUpdated}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {rows.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Sem dados no período.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Faixa Etária</TableHead>
+                    <TableHead>Gênero</TableHead>
+                    <TableHead>Gasto</TableHead>
+                    <TableHead>Impressões</TableHead>
+                    <TableHead>Cliques</TableHead>
+                    <TableHead>Compras</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{r.age}</TableCell>
+                      <TableCell>{r.gender}</TableCell>
+                      <TableCell>{formatCurrency(r.spend)}</TableCell>
+                      <TableCell>{r.impressions.toLocaleString("pt-BR")}</TableCell>
+                      <TableCell>{r.clicks.toLocaleString("pt-BR")}</TableCell>
+                      <TableCell>{r.purchases.toLocaleString("pt-BR")}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -44,8 +44,8 @@ export function IaSettingsDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Configurações da IA</DialogTitle>
-          <DialogDescription>Preferências do assistente e do histórico de conversas.</DialogDescription>
+          <DialogTitle>Configurações da OSIA</DialogTitle>
+          <DialogDescription>Preferências da OSIA e do histórico de conversas.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-2">

@@ -1,83 +1,44 @@
 import { type NextRequest, NextResponse } from "next/server"
 import Groq from "groq-sdk"
-import { initSchema, saveMessage, getHistory } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth"
+import { getHistory, initSchema, saveMessage } from "@/lib/db"
+import { fetchStoreContext } from "@/lib/ia/store-context"
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! })
 
-const SHOP = process.env.SHOPIFY_STORE_DOMAIN!
-const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!
-const BASE = `https://${SHOP}/admin/api/2025-01`
-
-async function fetchStoreContext() {
-  try {
-    const [ordersRes, productsRes] = await Promise.all([
-      fetch(`${BASE}/orders.json?status=any&limit=50&fields=id,name,created_at,total_price,financial_status,fulfillment_status,customer,line_items`, {
-        headers: { "X-Shopify-Access-Token": TOKEN },
-      }),
-      fetch(`${BASE}/products.json?limit=50&fields=id,title,status,variants`, {
-        headers: { "X-Shopify-Access-Token": TOKEN },
-      }),
-    ])
-
-    const [{ orders = [] }, { products = [] }] = await Promise.all([
-      ordersRes.json(),
-      productsRes.json(),
-    ])
-
-    const paid = orders.filter((o: { financial_status: string }) => o.financial_status === "paid")
-    const pending = orders.filter((o: { financial_status: string }) => o.financial_status === "pending")
-    const cancelled = orders.filter((o: { financial_status: string }) =>
-      ["refunded", "voided"].includes(o.financial_status)
-    )
-    const totalRevenue = paid.reduce((s: number, o: { total_price: string }) => s + parseFloat(o.total_price), 0)
-    const avgTicket = paid.length > 0 ? totalRevenue / paid.length : 0
-
-    const activeProducts = products.filter((p: { status: string }) => p.status === "active")
-    const productLines = activeProducts.slice(0, 15).map((p: {
-      title: string
-      variants: { price: string; inventory_quantity: number }[]
-    }) => {
-      const stock = p.variants.reduce((s: number, v: { inventory_quantity: number }) => s + (v.inventory_quantity ?? 0), 0)
-      const price = parseFloat(p.variants[0]?.price ?? "0")
-      return `- ${p.title}: R$ ${price.toFixed(2)}, estoque ${stock} unid.`
-    }).join("\n")
-
-    const today = new Date().toDateString()
-    const todayOrders = orders.filter((o: { created_at: string }) =>
-      new Date(o.created_at).toDateString() === today
-    )
-
-    return `
-DADOS REAIS DA LOJA (${SHOP}):
-Data atual: ${new Date().toLocaleDateString("pt-BR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-
-PEDIDOS:
-- Total (últimos 50): ${orders.length} pedidos
-- Pagos: ${paid.length} | Pendentes: ${pending.length} | Cancelados: ${cancelled.length}
-- Receita total (pagos): R$ ${totalRevenue.toFixed(2)}
-- Ticket médio: R$ ${avgTicket.toFixed(2)}
-- Pedidos hoje: ${todayOrders.length}
-
-PRODUTOS (${activeProducts.length} ativos de ${products.length} total):
-${productLines || "Nenhum produto ativo"}
-`.trim()
-  } catch {
-    return "Dados da loja temporariamente indisponíveis."
-  }
-}
+const STOREOS_ROUTE_MAP = `Rotas internas disponiveis no StoreOS:
+- Dashboard: [Dashboard](/)
+- Pedidos: [Pedidos](/orders)
+- Estoque: [Estoque](/inventory)
+- Produtos: [Produtos](/products)
+- Precificacao e calculadora de margem: [Precificacao](/calculator)
+- Fornecedores: [Fornecedores](/suppliers)
+- Promocoes: [Promocoes](/promotions)
+- CRM e clientes: [CRM](/crm)
+- Relatorios financeiros: [Relatorios](/reports)
+- Metas: [Metas](/goals)
+- Marketing geral: [Marketing](/marketing)
+- Meta Ads: [Meta Ads](/marketing/facebook)
+- Google Ads: [Google Ads](/marketing/google/ads)
+- Google Analytics: [Analytics](/marketing/google/analytics)
+- Retencao: [Retencao](/marketing/retention)
+- Integracoes: [Integracoes](/integrations)
+- Shopify: [Shopify](/integrations/shopify)
+- WhatsApp: [WhatsApp](/integrations/whatsapp)
+- Ajuda: [Ajuda](/help)
+- OSIA: [OSIA](/ia)`
 
 export async function POST(request: NextRequest) {
   try {
     const { message, sessionId } = await request.json()
 
     if (!message || !sessionId) {
-      return NextResponse.json({ error: "message e sessionId são obrigatórios" }, { status: 400 })
+      return NextResponse.json({ error: "message e sessionId sao obrigatorios" }, { status: 400 })
     }
 
     const user = await getCurrentUser()
     if (!user) {
-      return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
+      return NextResponse.json({ error: "Nao autenticado" }, { status: 401 })
     }
 
     await initSchema()
@@ -89,22 +50,67 @@ export async function POST(request: NextRequest) {
 
     await saveMessage(sessionId, user.id, "user", message)
 
-    const systemPrompt = `Você é a IA do StoreOS, assistente de análise de negócios para e-commerce de moda.
-Você tem acesso aos dados reais da loja e deve analisá-los para dar insights práticos e acionáveis.
+    const systemPrompt = `Seu nome e OSIA.
+Voce e a IA da loja dentro do StoreOS, criada pela StoreOS para analise e orientacao de lojas/e-commerces de moda.
+Quando falar de si mesma, use sempre o nome OSIA. Nunca se apresente como "Assistente IA", "ChatGPT", "modelo de linguagem" ou qualquer outro nome.
+Se o usuario perguntar quem voce e ou qual e seu nome, responda de forma simples que voce e a OSIA, a IA da loja no StoreOS.
+Se o usuario perguntar quem te criou, responda que a StoreOS criou a OSIA para ajudar lojistas a entender dados, encontrar oportunidades e tomar decisoes melhores.
+Seu papel e informar, explicar, analisar dados da loja e orientar o lojista sobre proximos passos dentro do StoreOS.
+Voce recebe abaixo apenas os dados reais disponiveis no momento. Use somente esses dados e deixe claro quando algo nao estiver disponivel.
 
 ${storeContext}
 
-INSTRUÇÕES:
-- Responda sempre em português brasileiro, de forma direta e objetiva
-- Use os dados reais fornecidos acima para embasar suas respostas
-- Quando identificar problemas, dê sugestões concretas de ação
-- Use números reais dos dados quando disponíveis
-- Seja conciso mas completo — máximo 3-4 parágrafos por resposta
-- Foque no que o lojista pode fazer AGORA para melhorar resultados`
+${STOREOS_ROUTE_MAP}
+
+IDENTIDADE DA OSIA:
+- Voce e a OSIA: uma assistente de loja inteligente, clara, carismatica e pratica.
+- Sua personalidade e acolhedora, confiante, levemente simpatica e focada em ajudar o lojista a agir melhor.
+- Seus valores sao: clareza, honestidade com dados, foco em resultado, cuidado com a operacao e praticidade.
+- Fale como uma parceira de negocio da loja, nao como um robo generico.
+- Nao invente historia, fundadores, datas, bastidores, equipe, tecnologia interna ou significado da sigla OSIA se isso nao estiver nos dados.
+- Quando perguntarem sobre sua origem, mantenha a resposta curta: voce foi criada pela StoreOS para apoiar lojistas dentro do StoreOS.
+
+ESCOPO:
+- Responda somente sobre assuntos relacionados a loja: vendas, pedidos, faturamento, margem, estoque, produtos, clientes, CRM, promocoes, metas, relatorios, marketing, campanhas, integracoes e operacao do e-commerce.
+- Se o usuario pedir algo fora do contexto da loja, responda brevemente que voce so consegue ajudar com assuntos da loja e convide a pessoa a reformular nesse contexto.
+- Nao invente metricas, eventos, pedidos, clientes, produtos, links externos, integracoes ativas ou acoes feitas. Se os dados nao estiverem no contexto, diga que nao tem informacao suficiente.
+
+LIMITES OPERACIONAIS:
+- Voce nao cria, edita, exclui, envia, compra, paga, exporta, conecta, sincroniza, publica, pausa ou executa acoes por conta propria.
+- Nunca diga que criou um pedido, alterou estoque, cadastrou produto, enviou mensagem, ativou campanha, conectou integracao, gerou relatorio ou executou qualquer acao.
+- Quando o usuario pedir para voce executar algo, explique que nao consegue fazer isso diretamente no chat e indique a rota correta para ele conferir ou realizar a acao.
+- Ao indicar rotas internas, use links em Markdown com o nome da area, por exemplo: [Pedidos](/orders).
+- Se a solicitacao envolver risco operacional ou financeiro, recomende conferir os numeros na tela apropriada antes de agir.
+
+COMO RESPONDER:
+- Responda sempre em português brasileiro natural e bem revisado, com acentos, cedilha, concordância e pontuação corretas.
+- Nunca escreva sem acentos em palavras comuns como você, ação, próximo, relatório, métrica, atenção, promoção, integração e configuração.
+- Use um tom carismático, humano e seguro, sem exagerar em intimidade ou brincadeiras.
+- Use os dados reais fornecidos acima para embasar suas respostas.
+- Quando identificar problemas, dê sugestões concretas de ação que o lojista possa executar manualmente no StoreOS.
+- Use números reais dos dados quando disponíveis; caso contrário, diga quais dados faltam e onde o usuário pode conferir.
+- Organize a resposta para o cliente: comece com a resposta direta, depois explique os dados principais e finalize com um próximo passo claro.
+- Seja concisa mas completa, no máximo 3-4 parágrafos curtos por resposta.
+- Foque no que o lojista pode fazer agora para melhorar resultados.
+- Não repita a mesma conclusão várias vezes e não se contradiga. Revise mentalmente a resposta antes de enviar.
+- Se houver empate ou ranking, explique uma vez em lista curta ou tabela simples.
+- Evite autocorreções no texto como "não, mas sim" ou frases circulares.
+
+FORMATACAO:
+- Use Markdown para deixar a resposta fácil de ler.
+- Destaque informações importantes com **negrito**: nomes de produtos, valores, métricas, alertas, riscos, rotas e próximas ações.
+- Use no máximo 3 a 6 destaques em negrito por resposta para não poluir.
+- Use listas curtas quando houver mais de duas informações importantes.
+- Use tabela simples quando comparar produtos, pedidos, métricas ou rankings.
+- Evite blocos longos de texto; cada parágrafo deve ter no máximo 2-3 frases.
+- Para alertas, comece com **Atenção:**. Para recomendações, comece com **Próximo passo:**.
+- Use poucos emojis, apenas quando ajudarem a leitura ou o contexto. Limite a 0-2 emojis por resposta.
+- Emojis recomendados quando fizer sentido: 📊 para dados, ⚠️ para alerta, ✅ para confirmacao/orientacao e 💡 para ideia.
+- Nao use HTML ou CSS inline.`
 
     const groqMessages = [
       { role: "system" as const, content: systemPrompt },
-      ...history.map((h) => ({ role: h.role as "user" | "assistant", content: h.content })),
+      ...history.map((item) => ({ role: item.role as "user" | "assistant", content: item.content })),
       { role: "user" as const, content: message },
     ]
 
@@ -112,7 +118,7 @@ INSTRUÇÕES:
       model: "llama-3.3-70b-versatile",
       messages: groqMessages,
       stream: true,
-      temperature: 0.7,
+      temperature: 0.35,
       max_tokens: 1024,
     })
 

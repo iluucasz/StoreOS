@@ -25,8 +25,13 @@ export async function initSchema() {
     CREATE TABLE IF NOT EXISTS chat_sessions (
       id text PRIMARY KEY,
       user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title text,
       created_at timestamptz NOT NULL DEFAULT now()
     )
+  `)
+  await db.execute(sql`
+    ALTER TABLE chat_sessions
+      ADD COLUMN IF NOT EXISTS title text
   `)
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS chat_messages (
@@ -74,12 +79,16 @@ export async function listSessions(userId: string): Promise<ChatSessionSummary[]
   const rows = await db
     .select({
       id: chatMessages.sessionId,
-      title: sql<string>`(array_agg(${chatMessages.content} ORDER BY ${chatMessages.createdAt} ASC)
-        FILTER (WHERE ${chatMessages.role} = 'user'))[1]`,
+      title: sql<string>`coalesce(
+        max(${chatSessions.title}),
+        (array_agg(${chatMessages.content} ORDER BY ${chatMessages.createdAt} ASC)
+          FILTER (WHERE ${chatMessages.role} = 'user'))[1]
+      )`,
       lastAt: sql<string>`to_char(max(${chatMessages.createdAt}) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`,
       count: sql<number>`count(*)::int`,
     })
     .from(chatMessages)
+    .leftJoin(chatSessions, eq(chatSessions.id, chatMessages.sessionId))
     .where(eq(chatMessages.userId, userId))
     .groupBy(chatMessages.sessionId)
     .orderBy(desc(sql`max(${chatMessages.createdAt})`))
@@ -99,6 +108,16 @@ export async function getSessionMessages(sessionId: string, userId: string) {
 /** Exclui uma conversa (cascateia as mensagens). */
 export async function deleteSession(sessionId: string, userId: string) {
   await db.delete(chatSessions).where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)))
+}
+
+/** Renomeia uma conversa do usuário. */
+export async function renameSession(sessionId: string, userId: string, title: string) {
+  const rows = await db
+    .update(chatSessions)
+    .set({ title })
+    .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)))
+    .returning({ id: chatSessions.id })
+  return rows.length > 0
 }
 
 /** Exclui todas as conversas do usuário. */

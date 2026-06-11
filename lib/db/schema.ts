@@ -253,6 +253,7 @@ export const trocas = pgTable("trocas", {
 export const chatSessions = pgTable("chat_sessions", {
   id: text("id").primaryKey(), // sess_...
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 })
 
