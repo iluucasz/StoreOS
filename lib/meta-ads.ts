@@ -13,7 +13,7 @@ const GRAPH = "https://graph.facebook.com"
 const API_VERSION = process.env.META_API_VERSION || "v21.0"
 
 /** Escopo OAuth para leitura de anúncios. */
-export const META_SCOPE = "ads_read,business_management"
+export const META_SCOPE = "ads_read"
 
 export class MetaError extends Error {}
 
