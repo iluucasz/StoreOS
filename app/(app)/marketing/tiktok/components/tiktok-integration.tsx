@@ -4,30 +4,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Check, Info, AlertCircle, ExternalLink, RefreshCw, Loader2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { MetaIcon } from "@/components/brand-icons"
-import type { MetaStatus } from "../page"
+import { TikTokIcon } from "@/components/brand-icons"
+import type { TikTokStatus } from "../page"
 
-interface FacebookIntegrationProps {
-  status: MetaStatus
+interface TikTokIntegrationProps {
+  status: TikTokStatus
   onRecheck: () => void
 }
 
 const ENV_VARS: { name: string; description: string }[] = [
-  { name: "META_APP_ID", description: "App ID do app no Meta for Developers" },
-  { name: "META_APP_SECRET", description: "App Secret do app" },
-  { name: "META_ACCESS_TOKEN", description: "Gerado pelo botão abaixo (token de longa duração)" },
-  { name: "META_AD_ACCOUNT_ID", description: "ID da conta de anúncios (act_... ou só os dígitos)" },
+  { name: "TIKTOK_APP_ID", description: "App ID (TikTok for Business / developers.tiktok.com)" },
+  { name: "TIKTOK_APP_SECRET", description: "Secret do app" },
+  { name: "TIKTOK_ACCESS_TOKEN", description: "Gerado pelo botão abaixo (fluxo OAuth)" },
+  { name: "TIKTOK_ADVERTISER_ID", description: "ID do anunciante (advertiser_id)" },
 ]
 
-export function FacebookIntegration({ status, onRecheck }: FacebookIntegrationProps) {
+export function TikTokIntegration({ status, onRecheck }: TikTokIntegrationProps) {
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <MetaIcon className="h-5 w-5 text-[#0866FF]" />
+              <TikTokIcon className="h-5 w-5" />
               Status da Integração
             </span>
             <Button variant="outline" size="sm" onClick={onRecheck} disabled={status.loading} className="gap-2">
@@ -35,7 +34,7 @@ export function FacebookIntegration({ status, onRecheck }: FacebookIntegrationPr
               Verificar
             </Button>
           </CardTitle>
-          <CardDescription>Conexão com a Meta Marketing API (Facebook + Instagram Ads)</CardDescription>
+          <CardDescription>Conexão com a TikTok Marketing API</CardDescription>
         </CardHeader>
         <CardContent>
           {status.loading ? (
@@ -48,15 +47,15 @@ export function FacebookIntegration({ status, onRecheck }: FacebookIntegrationPr
               <AlertTitle className="text-green-700">Conectado</AlertTitle>
               <AlertDescription className="text-green-700">
                 {status.account?.name
-                  ? `Conta "${status.account.name}" conectada e sincronizando.`
-                  : "Sua conta de anúncios da Meta está conectada."}
+                  ? `Anunciante "${status.account.name}" conectado e sincronizando.`
+                  : "Sua conta do TikTok Ads está conectada."}
               </AlertDescription>
             </Alert>
           ) : status.configured ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Credenciais presentes, mas a API retornou erro</AlertTitle>
-              <AlertDescription>{status.error || "Verifique o token e o Ad Account ID."}</AlertDescription>
+              <AlertDescription>{status.error || "Verifique o token e o advertiser ID."}</AlertDescription>
             </Alert>
           ) : (
             <Alert>
@@ -74,7 +73,7 @@ export function FacebookIntegration({ status, onRecheck }: FacebookIntegrationPr
         <CardHeader>
           <CardTitle>Credenciais (.env.local)</CardTitle>
           <CardDescription>
-            Consulte <code>docs/meta-ads-setup.md</code> para o passo a passo completo.
+            Consulte <code>docs/tiktok-ads-setup.md</code> para o passo a passo completo.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -94,26 +93,23 @@ export function FacebookIntegration({ status, onRecheck }: FacebookIntegrationPr
         <CardHeader>
           <CardTitle>Gerar Token de Acesso</CardTitle>
           <CardDescription>
-            Depois de preencher o App ID e o App Secret, gere o token de longa duração via Login do Facebook.
+            Depois de criar o app no TikTok for Business e preencher App ID/Secret, autorize para gerar o token.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>
-              Faça login com a conta que administra a conta de anúncios. O token (e a lista de contas
-              <code> act_...</code>) aparecerá na tela — copie para o <code>.env.local</code> e reinicie o servidor.
+              Faça login com a conta que administra o anunciante. O token e os <code>advertiser_ids</code> autorizados
+              aparecerão na tela — copie para o <code>.env.local</code> e reinicie o servidor.
             </AlertDescription>
           </Alert>
           <Button asChild>
-            <a href="/api/meta-ads/auth" target="_blank" rel="noopener noreferrer">
+            <a href="/api/tiktok-ads/auth" target="_blank" rel="noopener noreferrer">
               <ExternalLink className="mr-2 h-4 w-4" />
-              Conectar com a Meta e gerar token
+              Conectar com o TikTok e gerar token
             </a>
           </Button>
-          <div className="pt-2">
-            <Badge variant="outline">Permissões: ads_read, business_management</Badge>
-          </div>
         </CardContent>
       </Card>
     </div>

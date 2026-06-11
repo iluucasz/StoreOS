@@ -2,7 +2,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Facebook, BarChart4, Activity } from "lucide-react"
+import { BarChart4, Activity } from "lucide-react"
+import { MetaIcon, TikTokIcon } from "@/components/brand-icons"
 import { MarketingHeader } from "./components/marketing-header"
 import { MarketingDashboard } from "./components/marketing-dashboard"
 import Link from "next/link"
@@ -20,21 +21,39 @@ export default function MarketingPage() {
       <MarketingHeader integrations={integrations} />
 
       <div className="mt-6 space-y-6">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Facebook className="mr-2 h-5 w-5 text-[#4267B2]" />
-                Facebook Ads
+                <MetaIcon className="mr-2 h-5 w-5 text-[#0866FF]" />
+                Meta Ads
               </CardTitle>
-              <CardDescription>Gerencie suas campanhas no Facebook</CardDescription>
+              <CardDescription>Facebook e Instagram Ads</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="mb-4 text-sm text-muted-foreground">
-                Crie e gerencie campanhas, públicos e acompanhe o desempenho dos seus anúncios no Facebook.
+                Acompanhe campanhas, demografia e conversões dos seus anúncios no Facebook e Instagram.
               </p>
               <Button asChild className="w-full">
-                <Link href="/marketing/facebook">Acessar Facebook Ads</Link>
+                <Link href="/marketing/facebook">Acessar Meta Ads</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <TikTokIcon className="mr-2 h-5 w-5" />
+                TikTok Ads
+              </CardTitle>
+              <CardDescription>Gerencie suas campanhas no TikTok</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-4 text-sm text-muted-foreground">
+                Acompanhe o desempenho, gasto e conversões dos seus anúncios no TikTok Ads.
+              </p>
+              <Button asChild className="w-full">
+                <Link href="/marketing/tiktok">Acessar TikTok Ads</Link>
               </Button>
             </CardContent>
           </Card>

@@ -5,10 +5,11 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Calculator, TrendingUp, Package, BarChart2, HelpCircle, Settings,
-  Facebook, Activity, DollarSign, Sparkles, Menu, ShoppingCart, Users,
+  Activity, DollarSign, Sparkles, Menu, ShoppingCart, Users,
   ShoppingBag, MessageCircle, RefreshCw, LayoutGrid, Warehouse, Target,
   ChevronLeft, ChevronRight, Truck, Tag,
 } from "lucide-react"
+import { MetaIcon, TikTokIcon } from "@/components/brand-icons"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
@@ -58,7 +59,8 @@ const navGroups: NavGroup[] = [
     icon: BarChart2,
     items: [
       { name: "Visão Geral", href: "/marketing", icon: BarChart2 },
-      { name: "Meta Ads", href: "/marketing/facebook", icon: Facebook },
+      { name: "Meta Ads", href: "/marketing/facebook", icon: MetaIcon },
+      { name: "TikTok Ads", href: "/marketing/tiktok", icon: TikTokIcon },
       { name: "Google Ads", href: "/marketing/google/ads", icon: BarChart2 },
       { name: "Analytics", href: "/marketing/google/analytics", icon: Activity },
       { name: "Retenção", href: "/marketing/retention", icon: RefreshCw },
