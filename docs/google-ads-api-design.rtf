@@ -1,0 +1,61 @@
+{\rtf1\ansi\ansicpg1252\deff0
+{\fonttbl{\f0\fswiss Calibri;}}
+\fs22
+{\b\fs36 StoreOS - Google Ads API Tool Design Document}\par
+\par
+{\b\fs28 1. Overview}\par
+\par
+{\b Tool name:} StoreOS - Internal E-commerce Management Dashboard\par
+{\b Company:} Lia Eluan (fashion / apparel e-commerce store)\par
+{\b Website:} https://liaeluan.com.br\par
+\par
+{\b Purpose:} StoreOS is an internal web dashboard used by our own team to monitor the performance of our own Google Ads account. It is a read-only reporting tool - it does not create, edit, or remove any campaign, ad, keyword, budget, or conversion. It does not manage third-party accounts and does not resell data.\par
+\par
+{\b\fs28 2. Access level and users}\par
+\par
+- Users: Internal employees only (store owner / staff).\par
+- Number of accounts managed: A single Google Ads account (our own store).\par
+- Operations type: Read-only (reporting). No mutate operations are performed.\par
+- Estimated volume: Very low - a few requests per page load, well under Basic Access limits (15,000 operations/day).\par
+\par
+{\b\fs28 3. Architecture and data flow}\par
+\par
+1. Authentication (OAuth 2.0): The tool authenticates with a Google account that owns the Google Ads account, using the OAuth 2.0 "Web application" flow with access_type=offline to obtain a refresh token (scope https://www.googleapis.com/auth/adwords).\par
+2. Access token: The backend exchanges the refresh token for a short-lived access token at https://oauth2.googleapis.com/token.\par
+3. API request: The backend calls the Google Ads API REST endpoint GoogleAdsService.SearchStream (POST /vNN/customers/{customerId}/googleAds:searchStream) with the developer-token header and a GAQL query.\par
+4. Display: The JSON response is parsed and rendered as charts and tables in the dashboard. No data is stored long-term or shared externally; it is only displayed to internal users.\par
+\par
+Flow: Browser (internal user) -> StoreOS backend (Next.js API route) -> OAuth token endpoint (refresh to access token) -> Google Ads API (googleAds:searchStream, read-only GAQL) -> metrics rendered as charts/tables.\par
+\par
+{\b\fs28 4. Google Ads API services and resources used}\par
+\par
+Only GoogleAdsService.SearchStream is used, with read-only GAQL queries over the following resources:\par
+\par
+- Dashboard (totals + 7-day trend): FROM customer - segments.date, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value.\par
+- Campaigns: FROM campaign - campaign.id/name/status, campaign_budget.amount_micros, metrics.*.\par
+- Keywords: FROM keyword_view - ad_group_criterion.keyword.text/match_type, metrics.*.\par
+- Conversions: FROM campaign (segmented) and conversion_action - segments.conversion_action_name/category, conversion_action.*, metrics.conversions, metrics.conversions_value.\par
+\par
+{\b\fs28 5. Example query (GAQL)}\par
+\par
+SELECT campaign.id, campaign.name, campaign.status, metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date DURING LAST_30_DAYS ORDER BY metrics.cost_micros DESC\par
+\par
+{\b\fs28 6. User interface (screens)}\par
+\par
+The dashboard has four read-only tabs:\par
+1. Dashboard - summary metrics (total spend, conversions, CPA, ROAS) and 7-day charts of spend, clicks, impressions and conversions.\par
+2. Campaigns - table of campaigns with status, daily budget, spend, clicks, impressions, CTR, conversions and ROAS (last 30 days).\par
+3. Keywords - table of keywords with match type, clicks, impressions, CTR, average CPC and conversions (last 30 days).\par
+4. Conversions - conversion performance by action and the configured conversion actions.\par
+\par
+{\b\fs28 7. Data usage and privacy}\par
+\par
+- The tool reads metrics from our own Google Ads account only.\par
+- Data is used internally to monitor advertising performance.\par
+- No Google Ads data is sold, sublicensed, or shared with third parties.\par
+- No App Conversion Tracking / Remarketing API features are used.\par
+\par
+{\b\fs28 8. Compliance}\par
+\par
+The tool complies with the Google Ads API Terms of Service and Required Minimum Functionality. It performs reporting only and applies no automated changes to the account.\par
+}

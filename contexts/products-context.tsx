@@ -1,6 +1,13 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import {
+  listProducts,
+  createProduct,
+  updateProductAction,
+  deleteProductAction,
+  type ProductDTO,
+} from "@/app/actions/products"
 
 export interface ProductVariant {
   id: string
@@ -27,39 +34,17 @@ export function getProductStock(product: Product): number {
   return product.stock
 }
 
-const initialProducts: Product[] = [
-  {
-    id: 1, name: "Blusa Feminina", cost: 35, price: 89.9, margin: 30, stock: 0,
-    variants: [
-      { id: "v1", size: "P", color: "Branco", stock: 5 },
-      { id: "v2", size: "M", color: "Branco", stock: 7 },
-      { id: "v3", size: "G", color: "Branco", stock: 3 },
-    ],
-    createdAt: new Date(2023, 6, 15),
-  },
-  {
-    id: 2, name: "Calça Jeans", cost: 45, price: 129.9, margin: 35, stock: 0,
-    variants: [
-      { id: "v4", size: "38", color: "Azul", stock: 3 },
-      { id: "v5", size: "40", color: "Azul", stock: 4 },
-      { id: "v6", size: "42", color: "Azul", stock: 3 },
-    ],
-    createdAt: new Date(2023, 6, 10),
-  },
-  { id: 3, name: "Vestido Casual", cost: 50, price: 149.9, margin: 40, stock: 8, variants: [], createdAt: new Date(2023, 6, 5) },
-  { id: 4, name: "Saia Midi", cost: 30, price: 79.9, margin: 32, stock: 12, variants: [], createdAt: new Date(2023, 5, 28) },
-  {
-    id: 5, name: "Conjunto Verão", cost: 48, price: 139.9, margin: 38, stock: 0,
-    variants: [
-      { id: "v7", size: "P", color: "Rosa", stock: 2 },
-      { id: "v8", size: "M", color: "Rosa", stock: 3 },
-    ],
-    createdAt: new Date(2023, 5, 20),
-  },
-]
+function fromDTO(d: ProductDTO): Product {
+  return { ...d, createdAt: new Date(d.createdAt) }
+}
+
+function toDTO(p: Product): ProductDTO {
+  return { ...p, createdAt: p.createdAt.toISOString() }
+}
 
 interface ProductsContextType {
   products: Product[]
+  loading: boolean
   addProduct: (product: Omit<Product, "id" | "createdAt">) => void
   updateProduct: (product: Product) => void
   deleteProduct: (id: number) => void
@@ -75,73 +60,54 @@ interface ProductsContextType {
 const ProductsContext = createContext<ProductsContextType | undefined>(undefined)
 
 export function ProductsProvider({ children }: { children: ReactNode }) {
-  const [products, setProducts] = useState<Product[]>(() => {
-    if (typeof window !== "undefined") {
-      const savedProducts = localStorage.getItem("products")
-      if (savedProducts) {
-        const parsed = JSON.parse(savedProducts, (key, value) => {
-          if (key === "createdAt") return new Date(value)
-          return value
-        })
-        return parsed.map((p: Product) => ({ ...p, variants: p.variants ?? [] }))
-      }
-    }
-    return initialProducts
-  })
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    localStorage.setItem("products", JSON.stringify(products))
-  }, [products])
+    listProducts()
+      .then((rows) => setProducts(rows.map(fromDTO)))
+      .finally(() => setLoading(false))
+  }, [])
 
   const addProduct = (product: Omit<Product, "id" | "createdAt">) => {
-    const newProduct: Product = {
-      ...product,
-      variants: product.variants ?? [],
-      id: Math.max(0, ...products.map((p) => p.id)) + 1,
-      createdAt: new Date(),
-    }
-    setProducts([...products, newProduct])
+    createProduct({
+      name: product.name,
+      cost: product.cost,
+      price: product.price,
+      margin: product.margin,
+      stock: product.stock,
+      variants: (product.variants ?? []).map((v) => ({ id: v.id, size: v.size, color: v.color, stock: v.stock })),
+    }).then((rows) => setProducts(rows.map(fromDTO)))
   }
 
   const updateProduct = (product: Product) => {
-    setProducts(products.map((p) => (p.id === product.id ? product : p)))
+    // optimistic update
+    setProducts((prev) => prev.map((p) => (p.id === product.id ? product : p)))
+    updateProductAction(toDTO(product)).then((rows) => setProducts(rows.map(fromDTO)))
   }
 
   const deleteProduct = (id: number) => {
-    setProducts(products.filter((p) => p.id !== id))
+    setProducts((prev) => prev.filter((p) => p.id !== id))
+    deleteProductAction(id).then((rows) => setProducts(rows.map(fromDTO)))
   }
 
   const getProductById = (id: number) => products.find((p) => p.id === id)
-
   const getTotalProducts = () => products.length
-
-  const getAverageCost = () => {
-    if (products.length === 0) return 0
-    return products.reduce((sum, p) => sum + p.cost, 0) / products.length
-  }
-
-  const getAveragePrice = () => {
-    if (products.length === 0) return 0
-    return products.reduce((sum, p) => sum + p.price, 0) / products.length
-  }
-
-  const getAverageMargin = () => {
-    if (products.length === 0) return 0
-    return products.reduce((sum, p) => sum + p.margin, 0) / products.length
-  }
-
-  const getTotalStock = () => products.reduce((sum, p) => sum + getProductStock(p), 0)
-
+  const getAverageCost = () => (products.length === 0 ? 0 : products.reduce((s, p) => s + p.cost, 0) / products.length)
+  const getAveragePrice = () => (products.length === 0 ? 0 : products.reduce((s, p) => s + p.price, 0) / products.length)
+  const getAverageMargin = () => (products.length === 0 ? 0 : products.reduce((s, p) => s + p.margin, 0) / products.length)
+  const getTotalStock = () => products.reduce((s, p) => s + getProductStock(p), 0)
   const getNewProducts = (days: number) => {
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - days)
-    return products.filter((p) => p.createdAt > cutoffDate)
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - days)
+    return products.filter((p) => p.createdAt > cutoff)
   }
 
   return (
     <ProductsContext.Provider
       value={{
         products,
+        loading,
         addProduct,
         updateProduct,
         deleteProduct,
