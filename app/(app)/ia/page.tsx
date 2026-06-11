@@ -36,6 +36,12 @@ import { IaSettingsDialog } from "./components/ia-settings-dialog"
 type Message = { role: "user" | "assistant"; content: string }
 
 const newId = () => `sess_${Date.now()}_${Math.random().toString(36).slice(2)}`
+const THINKING_STEPS = [
+  "Lendo pedidos, faturamento e estoque da loja...",
+  "Comparando períodos e procurando quedas relevantes...",
+  "Separando causas prováveis de hipóteses...",
+  "Montando próximos passos úteis para a loja...",
+]
 
 export default function IaPage() {
   const [sessions, setSessions] = useState<SessionSummary[]>([])
@@ -364,12 +370,7 @@ export default function IaPage() {
                   ),
                 )}
                 {loading && streaming && <AssistantMessage content={streaming} streaming />}
-                {loading && !streaming && (
-                  <div className="flex items-center gap-3">
-                    <OsiaAvatar />
-                    <p className="text-sm text-muted-foreground">OSIA está analisando os dados da loja...</p>
-                  </div>
-                )}
+                {loading && !streaming && <ThinkingState />}
               </div>
             )}
             <div ref={bottomRef} />
@@ -533,6 +534,28 @@ function AssistantMessage({ content, streaming }: { content: string; streaming?:
         <ChatMarkdown content={content} />
         {streaming && <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-foreground/40 align-middle" />}
         {!streaming && content && <CopyAction content={content} />}
+      </div>
+    </div>
+  )
+}
+
+function ThinkingState() {
+  const [step, setStep] = useState(0)
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setStep((current) => (current + 1) % THINKING_STEPS.length)
+    }, 1200)
+
+    return () => window.clearInterval(timer)
+  }, [])
+
+  return (
+    <div className="flex items-start gap-3">
+      <OsiaAvatar />
+      <div className="rounded-2xl rounded-tl-md bg-background px-4 py-3 shadow-sm ring-1 ring-border/70">
+        <p className="text-sm font-medium">OSIA está pensando...</p>
+        <p className="mt-1 text-xs text-muted-foreground">{THINKING_STEPS[step]}</p>
       </div>
     </div>
   )

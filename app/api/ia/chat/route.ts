@@ -5,6 +5,9 @@ import { getHistory, initSchema, saveMessage } from "@/lib/db"
 import { fetchStoreContext } from "@/lib/ia/store-context"
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! })
+const OSIA_MODEL = "llama-3.1-8b-instant"
+const OSIA_HISTORY_LIMIT = 10
+const OSIA_MAX_TOKENS = 1200
 
 const STOREOS_ROUTE_MAP = `Rotas internas disponiveis no StoreOS:
 - Dashboard: [Dashboard](/)
@@ -44,7 +47,7 @@ export async function POST(request: NextRequest) {
     await initSchema()
 
     const [history, storeContext] = await Promise.all([
-      getHistory(sessionId, 10),
+      getHistory(sessionId, OSIA_HISTORY_LIMIT),
       fetchStoreContext(),
     ])
 
@@ -82,6 +85,16 @@ LIMITES OPERACIONAIS:
 - Ao indicar rotas internas, use links em Markdown com o nome da area, por exemplo: [Pedidos](/orders).
 - Se a solicitacao envolver risco operacional ou financeiro, recomende conferir os numeros na tela apropriada antes de agir.
 
+ANÁLISE COMERCIAL:
+- Quando o usuário perguntar por que as vendas estão baixas, caíram ou não estão performando, faça um diagnóstico real antes de sugerir ações.
+- Compare os períodos disponíveis no contexto: hoje, últimos 7 dias, 7 dias anteriores, últimos 30 dias e 30 dias anteriores.
+- Avalie pedidos pagos, pendentes, cancelados/reembolsados, ticket médio, último pedido pago, produtos mais vendidos, produtos sem estoque, baixo estoque e estoque parado.
+- Separe a resposta em: **Diagnóstico**, **Possíveis causas** e **Próximo passo**.
+- Dê no máximo 3 causas prováveis, sempre conectadas a um dado real. Se for hipótese, diga que é uma hipótese.
+- Dê 3 a 5 ações práticas e priorizadas, como revisar vitrine, oferta, preço, estoque, frete, checkout, criativos, campanha, remarketing ou CRM.
+- Se faltarem dados de tráfego, conversão, anúncios ou origem dos clientes, diga claramente que esses dados não estão disponíveis no contexto e indique [Analytics](/marketing/google/analytics), [Meta Ads](/marketing/facebook), [Google Ads](/marketing/google/ads) ou [Relatórios](/reports).
+- Você não tem navegação web em tempo real neste chat. Não diga que pesquisou na web. Pode usar boas práticas gerais de e-commerce como complemento, deixando claro que são boas práticas gerais.
+
 COMO RESPONDER:
 - Responda sempre em português brasileiro natural e bem revisado, com acentos, cedilha, concordância e pontuação corretas.
 - Nunca escreva sem acentos em palavras comuns como você, ação, próximo, relatório, métrica, atenção, promoção, integração e configuração.
@@ -115,11 +128,11 @@ FORMATACAO:
     ]
 
     const stream = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: OSIA_MODEL,
       messages: groqMessages,
       stream: true,
       temperature: 0.35,
-      max_tokens: 1024,
+      max_tokens: OSIA_MAX_TOKENS,
     })
 
     const encoder = new TextEncoder()
