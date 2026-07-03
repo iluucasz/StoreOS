@@ -1,40 +1,48 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { apiVersion } from "@/lib/meta-ads"
+import { requireUser } from "@/lib/auth"
+import { apiVersion, appId, appSecret } from "@/lib/meta-ads"
+import { verifyOAuthState } from "@/lib/integrations/oauth-state"
+import { saveUserIntegration } from "@/lib/integrations/store"
 
 const GRAPH = "https://graph.facebook.com"
 
-/**
- * Troca o código por um token de longa duração (~60 dias) e exibe junto a lista
- * de contas de anúncios, para você colar no .env.local.
- */
+function redirectWithMessage(origin: string, type: "connected" | "error", message: string) {
+  const url = new URL("/marketing/facebook", origin)
+  url.searchParams.set(type, message)
+  return NextResponse.redirect(url)
+}
+
 export async function GET(request: NextRequest) {
+  const user = await requireUser()
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get("code")
   const oauthError = searchParams.get("error_description") || searchParams.get("error")
+  const state = verifyOAuthState(searchParams.get("state"), "meta_ads")
 
-  if (oauthError) return NextResponse.json({ error: oauthError }, { status: 400 })
-  if (!code) return NextResponse.json({ error: "Código de autorização ausente" }, { status: 400 })
+  if (oauthError) return redirectWithMessage(origin, "error", oauthError)
+  if (!code) return redirectWithMessage(origin, "error", "Código de autorização ausente.")
+  if (!state || state.userId !== user.id) {
+    return redirectWithMessage(origin, "error", "Sessão de conexão inválida ou expirada. Tente novamente.")
+  }
 
-  const clientId = process.env.META_APP_ID
-  const clientSecret = process.env.META_APP_SECRET
+  const clientId = appId()
+  const clientSecret = appSecret()
   if (!clientId || !clientSecret) {
-    return NextResponse.json({ error: "META_APP_ID/META_APP_SECRET não configurados" }, { status: 400 })
+    return redirectWithMessage(origin, "error", "META_APP_ID/META_APP_SECRET não configurados.")
   }
 
   const redirectUri = process.env.META_REDIRECT_URI || `${origin}/api/meta-ads/callback`
   const v = apiVersion()
 
-  // 1) código → token de curta duração
   const shortRes = await fetch(
     `${GRAPH}/${v}/oauth/access_token?` +
       new URLSearchParams({ client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri, code }),
   )
   const shortData = await shortRes.json().catch(() => ({}))
   if (!shortData.access_token) {
-    return NextResponse.json({ ok: false, error: "Falha ao obter token", detail: shortData }, { status: 400 })
+    return redirectWithMessage(origin, "error", "Falha ao obter token da Meta.")
   }
 
-  // 2) curta → longa duração
   const longRes = await fetch(
     `${GRAPH}/${v}/oauth/access_token?` +
       new URLSearchParams({
@@ -47,8 +55,7 @@ export async function GET(request: NextRequest) {
   const longData = await longRes.json().catch(() => ({}))
   const token = longData.access_token || shortData.access_token
 
-  // 3) lista de contas de anúncios disponíveis
-  let adAccounts: { id: string; name: string; account_id: string }[] = []
+  let adAccounts: { id: string; name: string; account_id: string; currency?: string }[] = []
   try {
     const acc = await fetch(
       `${GRAPH}/${v}/me/adaccounts?fields=name,account_id,currency&access_token=${token}`,
@@ -57,17 +64,27 @@ export async function GET(request: NextRequest) {
       id: a.id,
       account_id: a.account_id,
       name: a.name,
+      currency: a.currency,
     }))
   } catch {
-    /* ignora */
+    adAccounts = []
   }
 
-  return NextResponse.json({
-    ok: true,
-    instrucao:
-      "Cole o access_token em META_ACCESS_TOKEN e o id (act_...) da conta desejada em META_AD_ACCOUNT_ID no .env.local. Depois reinicie o servidor.",
-    access_token: token,
-    expires_in: longData.expires_in,
-    ad_accounts: adAccounts,
+  const selected = adAccounts[0]
+  await saveUserIntegration({
+    userId: user.id,
+    provider: "meta_ads",
+    providerAccountId: selected?.id ?? null,
+    accountName: selected?.name ?? "Meta Ads",
+    accessToken: token,
+    expiresAt: longData.expires_in ? new Date(Date.now() + Number(longData.expires_in) * 1000) : null,
+    status: selected ? "connected" : "needs_reauth",
+    metadata: { adAccounts },
   })
+
+  return redirectWithMessage(
+    origin,
+    selected ? "connected" : "error",
+    selected ? "meta_ads" : "Nenhuma conta de anúncios da Meta foi encontrada.",
+  )
 }

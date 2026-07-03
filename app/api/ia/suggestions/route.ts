@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
     const visibleMessages = normalizeMessages(messages)
     const [history, storeContext] = await Promise.all([
       visibleMessages.length > 0 ? Promise.resolve(visibleMessages) : getHistory(sessionId, 8),
-      fetchStoreContext(),
+      fetchStoreContext(user.id),
     ])
 
     const conversation = history.length > 0

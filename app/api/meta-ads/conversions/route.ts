@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import {
-  isConfigured,
   graph,
   accountId,
   timeRange,
@@ -13,6 +12,7 @@ import {
   LEAD,
   MetaError,
 } from "@/lib/meta-ads"
+import { getMetaRequestCredentials } from "@/lib/integrations/meta-ads-request"
 
 const EVENTS: { name: string; types: string[] }[] = [
   { name: "Compras", types: PURCHASE },
@@ -24,13 +24,15 @@ const EVENTS: { name: string; types: string[] }[] = [
 
 /** Conversões (eventos do Pixel) dos últimos 30 dias. */
 export async function GET() {
-  if (!isConfigured()) return NextResponse.json({ configured: false })
+  const credentials = await getMetaRequestCredentials()
+
+  if (!credentials) return NextResponse.json({ configured: false })
 
   try {
-    const data = await graph(`${accountId()}/insights`, {
+    const data = await graph(`${accountId(credentials)}/insights`, {
       fields: "spend,actions,action_values",
       time_range: timeRange(30, 0),
-    })
+    }, credentials)
     const row = data.data?.[0] ?? {}
     const spend = num(row.spend)
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -10,11 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { formatCurrency } from "@/lib/utils"
-import { Search, Package, AlertTriangle, TrendingDown, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react"
+import { Search, Package, AlertTriangle, TrendingDown, Plus, Trash2, ChevronDown, ChevronUp, Loader2 } from "lucide-react"
 import { type LucideIcon } from "lucide-react"
 import { useProducts } from "@/contexts/products-context"
 import { useSuppliers } from "@/contexts/suppliers-context"
 import { useStockEntries, type StockEntryItem } from "@/contexts/stock-entries-context"
+import { useSettings } from "@/contexts/settings-context"
 import { toast } from "@/components/ui/use-toast"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -38,20 +39,7 @@ interface InventoryItem {
   daysToStockout: number | null
 }
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-
-const items: InventoryItem[] = [
-  { id: "1", name: "Vestido Casual", sku: "VES-001", category: "Vestidos", stock: 2, minStock: 5, unitCost: 55, price: 149.9, monthlySales: 18, revenue: 2698.2, level: "critico", abc: "A", daysToStockout: 3 },
-  { id: "2", name: "Conjunto Verão", sku: "CON-001", category: "Conjuntos", stock: 3, minStock: 5, unitCost: 52, price: 139.9, monthlySales: 16, revenue: 2238.4, level: "critico", abc: "A", daysToStockout: 6 },
-  { id: "3", name: "Blusa Feminina", sku: "BLU-001", category: "Blusas", stock: 8, minStock: 10, unitCost: 32, price: 89.9, monthlySales: 22, revenue: 1977.8, level: "baixo", abc: "A", daysToStockout: 11 },
-  { id: "4", name: "Calça Jeans", sku: "CAL-001", category: "Calças", stock: 15, minStock: 8, unitCost: 48, price: 129.9, monthlySales: 14, revenue: 1818.6, level: "ok", abc: "B", daysToStockout: 32 },
-  { id: "5", name: "Saia Midi", sku: "SAI-001", category: "Saias", stock: 12, minStock: 6, unitCost: 28, price: 79.9, monthlySales: 10, revenue: 799.0, level: "baixo", abc: "B", daysToStockout: 36 },
-  { id: "6", name: "Vestido Longo", sku: "VES-002", category: "Vestidos", stock: 22, minStock: 5, unitCost: 68, price: 189.9, monthlySales: 8, revenue: 1519.2, level: "ok", abc: "B", daysToStockout: 83 },
-  { id: "7", name: "Blusa Regata", sku: "BLU-002", category: "Blusas", stock: 35, minStock: 10, unitCost: 22, price: 59.9, monthlySales: 20, revenue: 1198.0, level: "alto", abc: "A", daysToStockout: 53 },
-  { id: "8", name: "Shorts Verão", sku: "SHO-001", category: "Shorts", stock: 6, minStock: 8, unitCost: 24, price: 69.9, monthlySales: 7, revenue: 489.3, level: "baixo", abc: "C", daysToStockout: 26 },
-  { id: "9", name: "Kimono Floral", sku: "KIM-001", category: "Kimonos", stock: 18, minStock: 4, unitCost: 45, price: 119.9, monthlySales: 5, revenue: 599.5, level: "ok", abc: "C", daysToStockout: null },
-  { id: "10", name: "Macacão Longo", sku: "MAC-001", category: "Macacões", stock: 9, minStock: 5, unitCost: 72, price: 199.9, monthlySales: 4, revenue: 799.6, level: "ok", abc: "B", daysToStockout: null },
-]
+// ─── Dados reais via /api/shopify/inventory ────────────────────────────────────
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -87,8 +75,8 @@ function Kpi({ title, value, icon: Icon, sub, alert }: { title: string; value: s
 
 // ─── ABC Chart ────────────────────────────────────────────────────────────────
 
-function ABCChart() {
-  const totalRevenue = items.reduce((s, i) => s + i.revenue, 0)
+function ABCChart({ items }: { items: InventoryItem[] }) {
+  const totalRevenue = items.reduce((s, i) => s + i.revenue, 0) || 1
   const byClass = ["A", "B", "C"].map((cls) => {
     const classItems = items.filter((i) => i.abc === cls)
     const rev = classItems.reduce((s, i) => s + i.revenue, 0)
@@ -137,7 +125,7 @@ function ABCChart() {
 
 // ─── Reorder List ─────────────────────────────────────────────────────────────
 
-function ReorderSuggestions() {
+function ReorderSuggestions({ items }: { items: InventoryItem[] }) {
   const needsReorder = items.filter((i) => i.stock <= i.minStock)
   return (
     <Card>
@@ -435,7 +423,7 @@ function NovaEntradaDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 // ─── Entries Tab ──────────────────────────────────────────────────────────────
 
 function EntradasTab() {
-  const { entries } = useStockEntries()
+  const { entries, loading } = useStockEntries()
   const [expanded, setExpanded] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
@@ -455,7 +443,12 @@ function EntradasTab() {
       <Card>
         <CardContent className="p-0">
           <div className="divide-y">
-            {entries.length === 0 ? (
+            {loading ? (
+              <p className="flex items-center justify-center gap-2 text-center text-sm text-muted-foreground py-8">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Carregando entradas...
+              </p>
+            ) : entries.length === 0 ? (
               <p className="text-center text-sm text-muted-foreground py-8">Nenhuma entrada registrada</p>
             ) : (
               entries.map((entry) => (
@@ -533,17 +526,39 @@ function EntradasTab() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function InventoryPage() {
+  const { settings } = useSettings()
+  const [items, setItems] = useState<InventoryItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [levelFilter, setLevelFilter] = useState("todos")
   const [abcFilter, setAbcFilter] = useState("todos")
 
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError(null)
+    fetch(`/api/shopify/inventory?minStock=${settings.lowStockThreshold}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((json) => {
+        if (!active) return
+        if (json.error) setError(json.error)
+        else setItems(json.items ?? [])
+      })
+      .catch(() => active && setError("Falha ao carregar o estoque da Shopify"))
+      .finally(() => active && setLoading(false))
+    return () => {
+      active = false
+    }
+  }, [settings.lowStockThreshold])
+
   const totalStock = items.reduce((s, i) => s + i.stock, 0)
   const totalValue = items.reduce((s, i) => s + i.stock * i.unitCost, 0)
   const criticalCount = items.filter((i) => i.level === "critico").length
-  const avgDays = Math.round(
-    items.filter((i) => i.daysToStockout !== null).reduce((s, i) => s + (i.daysToStockout ?? 0), 0) /
-    items.filter((i) => i.daysToStockout !== null).length
-  )
+  const withDays = items.filter((i) => i.daysToStockout !== null)
+  const avgDays = withDays.length
+    ? Math.round(withDays.reduce((s, i) => s + (i.daysToStockout ?? 0), 0) / withDays.length)
+    : 0
 
   const filtered = items.filter((i) => {
     const s = search.toLowerCase()
@@ -565,6 +580,21 @@ export default function InventoryPage() {
         </TabsList>
 
         <TabsContent value="estoque">
+          {loading ? (
+            <div className="flex items-center justify-center py-20 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              Carregando estoque da Shopify...
+            </div>
+          ) : error ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400">
+              Erro ao carregar o estoque: {error}
+            </div>
+          ) : items.length === 0 ? (
+            <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">
+              Nenhum produto encontrado na Shopify.
+            </div>
+          ) : (
+            <>
           <div className="grid gap-4 grid-cols-2 md:grid-cols-4 mb-6">
             <Kpi title="Total em Estoque" value={`${totalStock} un.`} icon={Package} sub="todas as categorias" />
             <Kpi title="Valor do Estoque" value={formatCurrency(totalValue)} icon={Package} sub="a preço de custo" />
@@ -573,8 +603,8 @@ export default function InventoryPage() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2 mb-6">
-            <ABCChart />
-            <ReorderSuggestions />
+            <ABCChart items={items} />
+            <ReorderSuggestions items={items} />
           </div>
 
           <Card>
@@ -674,6 +704,8 @@ export default function InventoryPage() {
               </div>
             </CardContent>
           </Card>
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="entradas">

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { isConfigured, runQuery, fromMicros, num, dateRange, GoogleAdsError } from "@/lib/google-ads"
+import { runQuery, fromMicros, num, dateRange, GoogleAdsError } from "@/lib/google-ads"
+import { getGoogleAdsRequestCredentials } from "@/lib/integrations/google-ads-request"
 
 function pct(curr: number, prev: number): number {
   if (!prev) return 0
@@ -13,7 +14,9 @@ function ddmm(isoDate: string): string {
 
 /** Métricas-resumo, série diária e desempenho por campanha/palavra-chave. */
 export async function GET() {
-  if (!isConfigured()) {
+  const credentials = await getGoogleAdsRequestCredentials()
+
+  if (!credentials) {
     return NextResponse.json({ configured: false })
   }
 
@@ -28,11 +31,13 @@ export async function GET() {
          FROM customer
          WHERE segments.date BETWEEN '${c.start}' AND '${c.end}'
          ORDER BY segments.date`,
+        credentials,
       ),
       runQuery(
         `SELECT metrics.cost_micros, metrics.conversions, metrics.conversions_value
          FROM customer
          WHERE segments.date BETWEEN '${p.start}' AND '${p.end}'`,
+        credentials,
       ),
       runQuery(
         `SELECT campaign.name, metrics.cost_micros
@@ -40,6 +45,7 @@ export async function GET() {
          WHERE segments.date BETWEEN '${c.start}' AND '${c.end}' AND metrics.cost_micros > 0
          ORDER BY metrics.cost_micros DESC
          LIMIT 8`,
+        credentials,
       ),
       runQuery(
         `SELECT ad_group_criterion.keyword.text, metrics.cost_micros
@@ -47,6 +53,7 @@ export async function GET() {
          WHERE segments.date BETWEEN '${c.start}' AND '${c.end}' AND metrics.cost_micros > 0
          ORDER BY metrics.cost_micros DESC
          LIMIT 8`,
+        credentials,
       ),
     ])
 

@@ -1,66 +1,56 @@
-# Integração com o TikTok Ads
+# Integração Com TikTok Ads
 
-Usa a **TikTok Marketing API** (Business API).
+O TikTok Ads usa a TikTok Marketing API. App ID e secret são globais do produto;
+access token e advertiser ID pertencem ao usuário conectado.
 
-## Variáveis (.env.local)
+## Variáveis Globais Do App
 
-| Variável | O que é |
+| Variável | Uso |
 |---|---|
-| `TIKTOK_APP_ID` | App ID (TikTok for Business) |
+| `TIKTOK_APP_ID` | App ID no TikTok for Business |
 | `TIKTOK_APP_SECRET` | Secret do app |
-| `TIKTOK_ACCESS_TOKEN` | Token de acesso (gerado no passo 2) |
-| `TIKTOK_ADVERTISER_ID` | ID do anunciante (advertiser_id) |
+| `TIKTOK_REDIRECT_URI` | Callback público, ex.: `https://app.seudominio.com/api/tiktok-ads/callback` |
+| `INTEGRATION_ENCRYPTION_KEY` | Chave de 32 bytes para criptografar tokens no banco |
 
-Reinicie o servidor (`npm run dev`) após alterar o `.env.local`.
+Não coloque access token ou advertiser ID no ambiente do servidor.
 
----
+## TikTok For Business
 
-## Passo 1 — Criar o app no TikTok for Business
+1. Acesse <https://business-api.tiktok.com/portal>.
+2. Crie um app e copie App ID e Secret para as variáveis globais.
+3. Em **Scope of permission**, habilite permissões de leitura de anúncios e
+   relatórios.
+4. Em **Redirect URL**, cadastre:
 
-1. Acesse <https://business-api.tiktok.com/portal> e entre em **My Apps → Create an App**
-   (é necessário ter uma conta TikTok for Business / TikTok Ads).
-2. Em **App detail**, copie o **App ID** e o **Secret** para `TIKTOK_APP_ID` e
-   `TIKTOK_APP_SECRET`.
-3. Em **Scope of permission**, marque **Ad Account Management** e **Reporting**
-   (leitura de relatórios).
-4. Em **Redirect URL** (Advertiser authorization URL), adicione:
-   ```
-   http://localhost:3000/api/tiktok-ads/callback
-   ```
-5. O app precisa ser aprovado pelo TikTok antes de acessar dados de produção —
-   acompanhe o status no portal.
+```txt
+http://localhost:3000/api/tiktok-ads/callback
+```
 
-## Passo 2 — Autorizar e gerar o token
+Em produção, cadastre também:
 
-1. Com App ID e Secret preenchidos e o servidor reiniciado, abra:
-   ```
-   http://localhost:3000/api/tiktok-ads/auth
-   ```
-   (ou o botão em **Marketing → TikTok Ads → Integração**)
-2. Faça login e autorize o(s) anunciante(s).
-3. A tela mostrará o `access_token` e os `advertiser_ids` autorizados. Copie o
-   token para `TIKTOK_ACCESS_TOKEN` e um dos ids para `TIKTOK_ADVERTISER_ID`.
-4. Reinicie o servidor.
+```txt
+https://app.seudominio.com/api/tiktok-ads/callback
+```
 
----
+## Fluxo Do Cliente
 
-## Testar
+1. O cliente acessa **Marketing → TikTok Ads → Integração**.
+2. Clica em **Entrar com TikTok**.
+3. Autoriza os anunciantes disponíveis.
+4. O callback salva o access token criptografado.
+5. O primeiro advertiser autorizado é salvo como `providerAccountId`.
 
-Abra **Marketing → TikTok Ads**. Deve mostrar **🟢 Conectado** e as abas Dashboard
-e Campanhas com dados reais (14/30 dias).
+## Próximo Ajuste Recomendado
 
-## Solução de problemas
+Se o usuário autorizar vários advertisers, exiba um seletor para escolher a conta
+ativa. Hoje a integração salva o primeiro advertiser e mantém a lista em
+`metadata.advertiserIds`.
+
+## Solução De Problemas
 
 | Mensagem | Causa provável |
 |---|---|
-| `Credenciais do TikTok não configuradas` | Falta `TIKTOK_ACCESS_TOKEN` ou `TIKTOK_ADVERTISER_ID` |
-| `Access token is incorrect or has been revoked` | Token inválido — gere outro (passo 2) |
-| `No permission` / `not approved` | App ainda sem aprovação ou sem o escopo Reporting |
-| `Advertiser id ... not exist` | advertiser_id errado (use só os dígitos) |
-
-## Endpoints criados
-
-- `GET /api/tiktok-ads/auth` · `callback` — geram o token
-- `GET /api/tiktok-ads/test` — status da conexão
-- `GET /api/tiktok-ads/dashboard` — visão geral + série (14 dias)
-- `GET /api/tiktok-ads/campaigns` — campanhas (30 dias)
+| `redirect_uri_mismatch` | Redirect cadastrado no TikTok não bate com a URL usada |
+| `Access token is incorrect or has been revoked` | Token expirado ou revogado |
+| `No permission` | App sem aprovação ou escopo insuficiente |
+| `Advertiser id ... not exist` | Advertiser removido ou sem permissão para o usuário |

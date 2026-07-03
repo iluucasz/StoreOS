@@ -1,21 +1,32 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { requireUser } from "@/lib/auth"
 import { TIKTOK_TOKEN_URL, appId, appSecret } from "@/lib/tiktok-ads"
+import { verifyOAuthState } from "@/lib/integrations/oauth-state"
+import { saveUserIntegration } from "@/lib/integrations/store"
 
-/**
- * Recebe o auth_code, troca por um access_token e exibe o token + os
- * advertiser_ids autorizados para colar no .env.local.
- */
+function redirectWithMessage(origin: string, type: "connected" | "error", message: string) {
+  const url = new URL("/marketing/tiktok", origin)
+  url.searchParams.set(type, message)
+  return NextResponse.redirect(url)
+}
+
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
+  const user = await requireUser()
+  const { searchParams, origin } = new URL(request.url)
   const authCode = searchParams.get("auth_code") || searchParams.get("code")
-  if (!authCode) {
-    return NextResponse.json({ error: "auth_code ausente" }, { status: 400 })
+  const oauthError = searchParams.get("error_description") || searchParams.get("error")
+  const state = verifyOAuthState(searchParams.get("state"), "tiktok_ads")
+
+  if (oauthError) return redirectWithMessage(origin, "error", oauthError)
+  if (!authCode) return redirectWithMessage(origin, "error", "auth_code ausente.")
+  if (!state || state.userId !== user.id) {
+    return redirectWithMessage(origin, "error", "Sessão de conexão inválida ou expirada. Tente novamente.")
   }
 
   const id = appId()
   const secret = appSecret()
   if (!id || !secret) {
-    return NextResponse.json({ error: "TIKTOK_APP_ID/TIKTOK_APP_SECRET não configurados" }, { status: 400 })
+    return redirectWithMessage(origin, "error", "TIKTOK_APP_ID/TIKTOK_APP_SECRET não configurados.")
   }
 
   const res = await fetch(TIKTOK_TOKEN_URL, {
@@ -26,15 +37,27 @@ export async function GET(request: NextRequest) {
   const data = await res.json().catch(() => ({}))
 
   if (data.code !== 0 || !data.data?.access_token) {
-    return NextResponse.json({ ok: false, error: data.message || "Falha ao obter token", detail: data }, { status: 400 })
+    return redirectWithMessage(origin, "error", data.message || "Falha ao obter token do TikTok.")
   }
 
-  return NextResponse.json({
-    ok: true,
-    instrucao:
-      "Cole o access_token em TIKTOK_ACCESS_TOKEN e um dos advertiser_ids em TIKTOK_ADVERTISER_ID no .env.local. Depois reinicie o servidor.",
-    access_token: data.data.access_token,
-    advertiser_ids: data.data.advertiser_ids,
-    scope: data.data.scope,
+  const advertiserIds: string[] = data.data.advertiser_ids || []
+  const advertiserId = advertiserIds[0] ?? ""
+
+  await saveUserIntegration({
+    userId: user.id,
+    provider: "tiktok_ads",
+    providerAccountId: advertiserId || null,
+    accountName: advertiserId ? `TikTok Ads ${advertiserId}` : "TikTok Ads",
+    accessToken: data.data.access_token,
+    refreshToken: data.data.refresh_token,
+    scope: Array.isArray(data.data.scope) ? data.data.scope.join(",") : data.data.scope,
+    status: advertiserId ? "connected" : "needs_reauth",
+    metadata: { advertiserIds },
   })
+
+  return redirectWithMessage(
+    origin,
+    advertiserId ? "connected" : "error",
+    advertiserId ? "tiktok_ads" : "Nenhum anunciante do TikTok foi encontrado.",
+  )
 }

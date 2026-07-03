@@ -1,113 +1,172 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Check, Info, AlertCircle, ExternalLink, RefreshCw, Loader2 } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { AlertCircle, Check, ExternalLink, Info, Loader2, RefreshCw, ShieldCheck } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import type { AnalyticsStatus } from "../page"
 
 interface AnalyticsIntegrationProps {
   status: AnalyticsStatus
   onRecheck: () => void
+  notice?: { type: "success" | "error"; message: string } | null
 }
 
-const ENV_VARS: { name: string; description: string }[] = [
-  { name: "GOOGLE_ANALYTICS_PROPERTY_ID", description: "ID numérico da propriedade GA4 (Admin → Configurações da propriedade)" },
-  { name: "GOOGLE_ANALYTICS_REFRESH_TOKEN", description: "Gerado pelo botão abaixo (fluxo OAuth)" },
-  { name: "GOOGLE_ADS_CLIENT_ID", description: "Reutiliza o OAuth client do Google Ads (mesmo projeto)" },
-  { name: "GOOGLE_ADS_CLIENT_SECRET", description: "Reutiliza o OAuth client do Google Ads" },
-]
+export function AnalyticsIntegration({ status, onRecheck, notice }: AnalyticsIntegrationProps) {
+  const [propertyId, setPropertyId] = useState(status.account?.id ?? "")
+  const cleanPropertyId = useMemo(() => propertyId.replace(/\D/g, ""), [propertyId])
 
-export function AnalyticsIntegration({ status, onRecheck }: AnalyticsIntegrationProps) {
+  useEffect(() => {
+    if (status.account?.id) setPropertyId(status.account.id)
+  }, [status.account?.id])
+
+  function connect() {
+    if (!cleanPropertyId) return
+    window.location.href = `/api/google-analytics/auth?propertyId=${encodeURIComponent(cleanPropertyId)}`
+  }
+
   return (
     <div className="space-y-6">
+      {notice ? (
+        <Alert
+          variant={notice.type === "error" ? "destructive" : "default"}
+          className={notice.type === "success" ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20" : undefined}
+        >
+          {notice.type === "success" ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertCircle className="h-4 w-4" />}
+          <AlertTitle>{notice.type === "success" ? "Integração concluída" : "Não foi possível conectar"}</AlertTitle>
+          <AlertDescription>{notice.message}</AlertDescription>
+        </Alert>
+      ) : null}
+
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Status da Integração</span>
+          <CardTitle className="flex items-center justify-between gap-3">
+            <span>Status da integração</span>
             <Button variant="outline" size="sm" onClick={onRecheck} disabled={status.loading} className="gap-2">
               {status.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               Verificar
             </Button>
           </CardTitle>
-          <CardDescription>Estado atual da conexão com a Google Analytics Data API (GA4)</CardDescription>
+          <CardDescription>Conexão da sua conta com o Google Analytics 4.</CardDescription>
         </CardHeader>
         <CardContent>
           {status.loading ? (
-            <p className="text-sm text-muted-foreground flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" /> Verificando conexão...
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Verificando conexão...
             </p>
           ) : status.connected ? (
-            <Alert className="bg-green-50 border-green-200">
-              <Check className="h-4 w-4 text-green-600" />
-              <AlertTitle className="text-green-700">Conectado</AlertTitle>
-              <AlertDescription className="text-green-700">
-                Sua propriedade do Google Analytics 4 está conectada e sincronizando dados.
+            <Alert className="border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20">
+              <Check className="h-4 w-4 text-emerald-600" />
+              <AlertTitle className="text-emerald-700 dark:text-emerald-400">Conectado</AlertTitle>
+              <AlertDescription className="text-emerald-700 dark:text-emerald-400">
+                {status.account?.id
+                  ? `Propriedade GA4 ${status.account.id} conectada.`
+                  : "Sua propriedade do Google Analytics 4 está conectada e pronta para consultar dados."}
               </AlertDescription>
             </Alert>
           ) : status.configured ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Credenciais presentes, mas a API retornou erro</AlertTitle>
+              <AlertTitle>Credenciais salvas, mas a API retornou erro</AlertTitle>
               <AlertDescription>
-                {status.error || "Verifique o Property ID e se a conta tem acesso à propriedade."}
+                {status.error || "Verifique o ID da propriedade e se a conta Google tem acesso a ela."}
               </AlertDescription>
             </Alert>
           ) : (
             <Alert>
               <Info className="h-4 w-4" />
-              <AlertTitle>Não configurado</AlertTitle>
+              <AlertTitle>Não conectado</AlertTitle>
               <AlertDescription>
-                Preencha as variáveis abaixo no <code>.env.local</code> e reinicie o servidor.
+                Informe o ID numérico da propriedade GA4 e faça login com a conta Google que tem acesso a ela.
               </AlertDescription>
             </Alert>
           )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Credenciais (.env.local)</CardTitle>
-          <CardDescription>
-            Usa o mesmo OAuth client do Google Ads. Consulte <code>docs/google-analytics-setup.md</code> para o passo a passo.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {ENV_VARS.map((v) => (
-            <div key={v.name} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b pb-2 last:border-0">
-              <code className="text-sm font-mono text-foreground">{v.name}</code>
-              <span className="text-xs text-muted-foreground">{v.description}</span>
+      <div className="grid gap-6 lg:grid-cols-[1fr_0.8fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>{status.connected ? "Trocar propriedade conectada" : "Conectar Google Analytics"}</CardTitle>
+            <CardDescription>
+              A autorização é individual para sua conta. Você não precisa copiar token nem configurar servidor.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="ga-property-id">ID da propriedade GA4</Label>
+              <Input
+                id="ga-property-id"
+                inputMode="numeric"
+                placeholder="Ex.: 485221982"
+                value={propertyId}
+                onChange={(event) => setPropertyId(event.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Use o ID numérico da propriedade. Ele é diferente do ID de medição que começa com G-.
+              </p>
             </div>
-          ))}
-        </CardContent>
-      </Card>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Button onClick={connect} disabled={!cleanPropertyId} className="gap-2">
+                <ExternalLink className="h-4 w-4" />
+                {status.connected ? "Reconectar com Google" : "Entrar com Google"}
+              </Button>
+              <Badge variant="outline">Acesso somente leitura</Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+              Segurança da conexão
+            </CardTitle>
+            <CardDescription>O que acontece quando você entra com o Google.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <div className="rounded-md border p-3">
+              <p className="font-medium text-foreground">Permissão solicitada</p>
+              <p>Leitura dos relatórios do Google Analytics 4.</p>
+            </div>
+            <div className="rounded-md border p-3">
+              <p className="font-medium text-foreground">Dados por usuário</p>
+              <p>Cada usuário conecta a própria propriedade. Uma conta não usa os dados de outra.</p>
+            </div>
+            <div className="rounded-md border p-3">
+              <p className="font-medium text-foreground">Revogação</p>
+              <p>Você pode remover o acesso a qualquer momento na sua Conta Google.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Gerar Refresh Token</CardTitle>
-          <CardDescription>
-            Ative a <strong>Google Analytics Data API</strong> no Google Cloud, adicione o redirect{" "}
-            <code>/api/google-analytics/callback</code> no OAuth client, e gere o token.
-          </CardDescription>
+          <CardTitle>Como encontrar o ID da propriedade</CardTitle>
+          <CardDescription>Use o número da propriedade GA4 para conectar a fonte correta.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertDescription>
-              Faça login com a conta Google que tem acesso à propriedade GA4. O token aparecerá na tela — copie para{" "}
-              <code>GOOGLE_ANALYTICS_REFRESH_TOKEN</code> no <code>.env.local</code> e reinicie o servidor.
-            </AlertDescription>
-          </Alert>
-          <Button asChild>
-            <a href="/api/google-analytics/auth" target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Conectar com Google e gerar token
-            </a>
-          </Button>
-          <div className="pt-2">
-            <Badge variant="outline">Escopo: https://www.googleapis.com/auth/analytics.readonly</Badge>
-          </div>
+        <CardContent>
+          <ol className="grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
+            <li className="rounded-md border p-3">
+              <span className="mb-1 block font-medium text-foreground">1. Acesse o GA4</span>
+              Entre no Google Analytics e selecione a propriedade do seu site.
+            </li>
+            <li className="rounded-md border p-3">
+              <span className="mb-1 block font-medium text-foreground">2. Abra o Admin</span>
+              Vá em Administrador e depois em Configurações da propriedade.
+            </li>
+            <li className="rounded-md border p-3">
+              <span className="mb-1 block font-medium text-foreground">3. Copie o ID</span>
+              Use apenas o número da propriedade, por exemplo 485221982.
+            </li>
+          </ol>
         </CardContent>
       </Card>
     </div>

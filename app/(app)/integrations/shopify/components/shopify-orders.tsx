@@ -47,7 +47,7 @@ export function ShopifyOrders() {
       .then((r) => r.json())
       .then((data) => {
         if (data.error) throw new Error(data.error)
-        setOrders(data)
+        setOrders(Array.isArray(data) ? data : data.orders ?? [])
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))

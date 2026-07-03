@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { leads, contacts, opportunities } from "@/lib/db/schema"
 import { requireUser } from "@/lib/auth"
+import { createWebToLeadToken } from "@/lib/crm/web-to-lead-token"
 
 export interface LeadDTO {
   id: string
@@ -40,6 +41,29 @@ export interface OpportunityDTO {
   notes: string
 }
 export interface CRMData { leads: LeadDTO[]; contacts: ContactDTO[]; opportunities: OpportunityDTO[] }
+export type ImportLeadInput = {
+  name?: string
+  email?: string
+  whatsapp?: string
+  source?: LeadDTO["source"]
+  status?: LeadDTO["status"]
+  estimatedValue?: number
+  notes?: string
+}
+
+const validSources: LeadDTO["source"][] = ["Meta", "Google", "Orgânico", "Indicação", "WhatsApp", "Outro"]
+const validStatuses: LeadDTO["status"][] = ["novo", "contatado", "qualificado", "perdido"]
+
+function cleanText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : ""
+}
+
+function cleanMoney(value: unknown): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0
+  const normalized = cleanText(value).replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, "")
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : 0
+}
 
 async function load(userId: string): Promise<CRMData> {
   const [ls, cs, os] = await Promise.all([
@@ -71,6 +95,11 @@ export async function listCRM(): Promise<CRMData> {
   return load(u.id)
 }
 
+export async function getWebToLeadConfig() {
+  const u = await requireUser()
+  return { token: createWebToLeadToken(u.id) }
+}
+
 // ─── Leads ───────────────────────────────────────────────────────────────────
 export async function createLead(data: Omit<LeadDTO, "id" | "createdAt">): Promise<CRMData> {
   const u = await requireUser()
@@ -78,6 +107,36 @@ export async function createLead(data: Omit<LeadDTO, "id" | "createdAt">): Promi
     userId: u.id, name: data.name, email: data.email, whatsapp: data.whatsapp, source: data.source,
     status: data.status, estimatedValue: String(data.estimatedValue), notes: data.notes, createdAt: today(),
   })
+  return load(u.id)
+}
+
+export async function importLeadsAction(rows: ImportLeadInput[]): Promise<CRMData> {
+  const u = await requireUser()
+  const values = rows
+    .slice(0, 500)
+    .map((row) => {
+      const name = cleanText(row.name)
+      const email = cleanText(row.email)
+      const whatsapp = cleanText(row.whatsapp)
+      const notes = cleanText(row.notes)
+      const hasSignal = Boolean(name || email || whatsapp || notes)
+      return {
+        userId: u.id,
+        name: name || email || whatsapp || "Lead sem nome",
+        email,
+        whatsapp,
+        source: validSources.includes(row.source as LeadDTO["source"]) ? row.source! : "Outro",
+        status: validStatuses.includes(row.status as LeadDTO["status"]) ? row.status! : "novo",
+        estimatedValue: String(cleanMoney(row.estimatedValue)),
+        notes,
+        createdAt: today(),
+        hasSignal,
+      }
+    })
+    .filter((row) => row.hasSignal)
+    .map(({ hasSignal, ...row }) => row)
+
+  if (values.length) await db.insert(leads).values(values)
   return load(u.id)
 }
 export async function updateLeadAction(id: string, data: Partial<LeadDTO>): Promise<CRMData> {

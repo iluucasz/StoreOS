@@ -1,32 +1,35 @@
 import { NextResponse } from "next/server"
-import { isConfigured, runRealtimeReport, parseRows, firstRow, num, GoogleAnalyticsError } from "@/lib/google-analytics"
+import { runRealtimeReport, parseRows, firstRow, num, GoogleAnalyticsError } from "@/lib/google-analytics"
+import { getGoogleAnalyticsRequestCredentials } from "@/lib/integrations/google-analytics-request"
 
 /** Dados em tempo real (últimos 30 minutos) da propriedade GA4. */
 export async function GET() {
-  if (!isConfigured()) {
+  const credentials = await getGoogleAnalyticsRequestCredentials()
+
+  if (!credentials) {
     return NextResponse.json({ configured: false })
   }
 
   try {
     const [totals, pages, countries, devices] = await Promise.all([
-      runRealtimeReport({ metrics: [{ name: "activeUsers" }, { name: "screenPageViews" }] }),
+      runRealtimeReport({ metrics: [{ name: "activeUsers" }, { name: "screenPageViews" }] }, credentials),
       runRealtimeReport({
         dimensions: [{ name: "unifiedScreenName" }],
         metrics: [{ name: "activeUsers" }],
         orderBys: [{ desc: true, metric: { metricName: "activeUsers" } }],
         limit: 8,
-      }),
+      }, credentials),
       runRealtimeReport({
         dimensions: [{ name: "country" }],
         metrics: [{ name: "activeUsers" }],
         orderBys: [{ desc: true, metric: { metricName: "activeUsers" } }],
         limit: 8,
-      }),
+      }, credentials),
       runRealtimeReport({
         dimensions: [{ name: "deviceCategory" }],
         metrics: [{ name: "activeUsers" }],
         orderBys: [{ desc: true, metric: { metricName: "activeUsers" } }],
-      }),
+      }, credentials),
     ])
 
     const t = firstRow(totals)

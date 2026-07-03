@@ -1,10 +1,10 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Check, Info, AlertCircle, ExternalLink, RefreshCw, Loader2 } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle, Check, ExternalLink, Info, Loader2, RefreshCw } from "lucide-react"
 import { TikTokIcon } from "@/components/brand-icons"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { TikTokStatus } from "../page"
 
 interface TikTokIntegrationProps {
@@ -12,19 +12,12 @@ interface TikTokIntegrationProps {
   onRecheck: () => void
 }
 
-const ENV_VARS: { name: string; description: string }[] = [
-  { name: "TIKTOK_APP_ID", description: "App ID (TikTok for Business / developers.tiktok.com)" },
-  { name: "TIKTOK_APP_SECRET", description: "Secret do app" },
-  { name: "TIKTOK_ACCESS_TOKEN", description: "Gerado pelo botão abaixo (fluxo OAuth)" },
-  { name: "TIKTOK_ADVERTISER_ID", description: "ID do anunciante (advertiser_id)" },
-]
-
 export function TikTokIntegration({ status, onRecheck }: TikTokIntegrationProps) {
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-2">
               <TikTokIcon className="h-5 w-5" />
               Status da Integração
@@ -34,7 +27,7 @@ export function TikTokIntegration({ status, onRecheck }: TikTokIntegrationProps)
               Verificar
             </Button>
           </CardTitle>
-          <CardDescription>Conexão com a TikTok Marketing API</CardDescription>
+          <CardDescription>Conexão da conta deste usuário com a TikTok Marketing API.</CardDescription>
         </CardHeader>
         <CardContent>
           {status.loading ? (
@@ -42,28 +35,26 @@ export function TikTokIntegration({ status, onRecheck }: TikTokIntegrationProps)
               <Loader2 className="h-4 w-4 animate-spin" /> Verificando conexão...
             </p>
           ) : status.connected ? (
-            <Alert className="border-green-200 bg-green-50">
-              <Check className="h-4 w-4 text-green-600" />
-              <AlertTitle className="text-green-700">Conectado</AlertTitle>
-              <AlertDescription className="text-green-700">
+            <Alert className="border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20">
+              <Check className="h-4 w-4 text-emerald-600" />
+              <AlertTitle className="text-emerald-700 dark:text-emerald-400">Conectado</AlertTitle>
+              <AlertDescription className="text-emerald-700 dark:text-emerald-400">
                 {status.account?.name
-                  ? `Anunciante "${status.account.name}" conectado e sincronizando.`
+                  ? `Anunciante "${status.account.name}" conectado.`
                   : "Sua conta do TikTok Ads está conectada."}
               </AlertDescription>
             </Alert>
           ) : status.configured ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Credenciais presentes, mas a API retornou erro</AlertTitle>
-              <AlertDescription>{status.error || "Verifique o token e o advertiser ID."}</AlertDescription>
+              <AlertTitle>Credenciais salvas, mas a API retornou erro</AlertTitle>
+              <AlertDescription>{status.error || "Verifique o acesso ao anunciante TikTok."}</AlertDescription>
             </Alert>
           ) : (
             <Alert>
               <Info className="h-4 w-4" />
-              <AlertTitle>Não configurado</AlertTitle>
-              <AlertDescription>
-                Preencha as variáveis abaixo no <code>.env.local</code> e reinicie o servidor.
-              </AlertDescription>
+              <AlertTitle>Não conectado</AlertTitle>
+              <AlertDescription>Faça login com a conta que administra o anunciante no TikTok.</AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -71,43 +62,17 @@ export function TikTokIntegration({ status, onRecheck }: TikTokIntegrationProps)
 
       <Card>
         <CardHeader>
-          <CardTitle>Credenciais (.env.local)</CardTitle>
+          <CardTitle>Conectar TikTok Ads</CardTitle>
           <CardDescription>
-            Consulte <code>docs/tiktok-ads-setup.md</code> para o passo a passo completo.
+            O access token será salvo criptografado para o usuário logado. Se houver vários anunciantes, o app usa o
+            primeiro anunciante acessível por enquanto.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {ENV_VARS.map((v) => (
-            <div
-              key={v.name}
-              className="flex flex-col gap-1 border-b pb-2 last:border-0 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <code className="font-mono text-sm text-foreground">{v.name}</code>
-              <span className="text-xs text-muted-foreground">{v.description}</span>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Gerar Token de Acesso</CardTitle>
-          <CardDescription>
-            Depois de criar o app no TikTok for Business e preencher App ID/Secret, autorize para gerar o token.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertDescription>
-              Faça login com a conta que administra o anunciante. O token e os <code>advertiser_ids</code> autorizados
-              aparecerão na tela — copie para o <code>.env.local</code> e reinicie o servidor.
-            </AlertDescription>
-          </Alert>
-          <Button asChild>
-            <a href="/api/tiktok-ads/auth" target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Conectar com o TikTok e gerar token
+        <CardContent>
+          <Button asChild className="gap-2">
+            <a href="/api/tiktok-ads/auth">
+              <ExternalLink className="h-4 w-4" />
+              Entrar com TikTok
             </a>
           </Button>
         </CardContent>

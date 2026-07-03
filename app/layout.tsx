@@ -1,14 +1,14 @@
-import "./globals.css"
+import type React from "react"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
-import type React from "react"
+import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
   title: "StoreOS",
-  description: "Uma única tela que centraliza tudo: produtos, financeiro, precificação e marketing.",
+  description: "Uma tela para centralizar produtos, financeiro, precificação e marketing.",
   generator: "v0.dev",
 }
 

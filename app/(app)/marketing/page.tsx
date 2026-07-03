@@ -1,102 +1,190 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { BarChart4, Activity } from "lucide-react"
-import { MetaIcon, TikTokIcon } from "@/components/brand-icons"
-import { MarketingHeader } from "./components/marketing-header"
-import { MarketingDashboard } from "./components/marketing-dashboard"
+import type React from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useState } from "react"
+import { Activity, BarChart4 } from "lucide-react"
+import { MetaIcon, TikTokIcon } from "@/components/brand-icons"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { MarketingDashboard, type PlatformStatuses } from "./components/marketing-dashboard"
+import { MarketingHeader } from "./components/marketing-header"
+
+const initialStatuses: PlatformStatuses = {
+  meta: { loading: true, configured: false, connected: false },
+  googleAds: { loading: true, configured: false, connected: false },
+  tiktok: { loading: true, configured: false, connected: false },
+  googleAnalytics: { loading: true, configured: false, connected: false },
+}
+
+const checks = [
+  ["meta", "/api/meta-ads/test"],
+  ["googleAds", "/api/google-ads/test"],
+  ["tiktok", "/api/tiktok-ads/test"],
+  ["googleAnalytics", "/api/google-analytics/test"],
+] as const
 
 export default function MarketingPage() {
-  const [integrations, setIntegrations] = useState({
-    facebook: false,
-    googleAds: false,
-    googleAnalytics: false,
-  })
+  const [statuses, setStatuses] = useState<PlatformStatuses>(initialStatuses)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const refresh = useCallback(async () => {
+    setStatuses((current) => ({
+      meta: { ...current.meta, loading: true },
+      googleAds: { ...current.googleAds, loading: true },
+      tiktok: { ...current.tiktok, loading: true },
+      googleAnalytics: { ...current.googleAnalytics, loading: true },
+    }))
+
+    const results = await Promise.all(
+      checks.map(async ([key, path]) => {
+        try {
+          const response = await fetch(path, { cache: "no-store" })
+          const json = await response.json()
+          return [
+            key,
+            {
+              loading: false,
+              configured: !!json.configured,
+              connected: !!json.connected,
+              error: json.error,
+              account: json.account,
+            },
+          ] as const
+        } catch {
+          return [
+            key,
+            {
+              loading: false,
+              configured: false,
+              connected: false,
+              error: "Não foi possível verificar a integração.",
+            },
+          ] as const
+        }
+      }),
+    )
+
+    setStatuses((current) => {
+      const next = { ...current }
+      for (const [key, value] of results) next[key] = value
+      return next
+    })
+    setRefreshKey((value) => value + 1)
+  }, [])
+
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
+
+  const integrations = useMemo(
+    () => ({
+      meta: statuses.meta.connected,
+      googleAds: statuses.googleAds.connected,
+      tiktok: statuses.tiktok.connected,
+      googleAnalytics: statuses.googleAnalytics.connected,
+    }),
+    [statuses],
+  )
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <MarketingHeader integrations={integrations} />
+    <div className="container mx-auto max-w-7xl px-4 py-6">
+      <MarketingHeader statuses={statuses} onRefresh={refresh} />
 
       <div className="mt-6 space-y-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <MetaIcon className="mr-2 h-5 w-5 text-[#0866FF]" />
-                Meta Ads
-              </CardTitle>
-              <CardDescription>Facebook e Instagram Ads</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Acompanhe campanhas, demografia e conversões dos seus anúncios no Facebook e Instagram.
-              </p>
-              <Button asChild className="w-full">
-                <Link href="/marketing/facebook">Acessar Meta Ads</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          <IntegrationCard
+            title="Meta Ads"
+            description="Facebook e Instagram Ads"
+            body="Acompanhe campanhas, demografia e conversões dos seus anúncios no Facebook e Instagram."
+            href="/marketing/facebook"
+            action="Acessar Meta Ads"
+            connected={statuses.meta.connected}
+            icon={<MetaIcon className="mr-2 h-5 w-5 text-[#0866FF]" />}
+          />
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <TikTokIcon className="mr-2 h-5 w-5" />
-                TikTok Ads
-              </CardTitle>
-              <CardDescription>Gerencie suas campanhas no TikTok</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Acompanhe o desempenho, gasto e conversões dos seus anúncios no TikTok Ads.
-              </p>
-              <Button asChild className="w-full">
-                <Link href="/marketing/tiktok">Acessar TikTok Ads</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          <IntegrationCard
+            title="TikTok Ads"
+            description="Campanhas no TikTok"
+            body="Acompanhe desempenho, gasto e conversões dos seus anúncios no TikTok Ads."
+            href="/marketing/tiktok"
+            action="Acessar TikTok Ads"
+            connected={statuses.tiktok.connected}
+            icon={<TikTokIcon className="mr-2 h-5 w-5" />}
+          />
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <BarChart4 className="mr-2 h-5 w-5 text-[#DB4437]" />
-                Google Ads
-              </CardTitle>
-              <CardDescription>Gerencie suas campanhas no Google</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Crie e gerencie campanhas de pesquisa, display e vídeo no Google Ads.
-              </p>
-              <Button asChild className="w-full">
-                <Link href="/marketing/google/ads">Acessar Google Ads</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          <IntegrationCard
+            title="Google Ads"
+            description="Campanhas no Google"
+            body="Gerencie campanhas de pesquisa, display e vídeo com dados reais da conta."
+            href="/marketing/google/ads"
+            action="Acessar Google Ads"
+            connected={statuses.googleAds.connected}
+            icon={<BarChart4 className="mr-2 h-5 w-5 text-[#DB4437]" />}
+          />
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Activity className="mr-2 h-5 w-5 text-[#F4B400]" />
-                Google Analytics
-              </CardTitle>
-              <CardDescription>Analise o desempenho do seu site</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Acompanhe o tráfego, comportamento dos usuários e conversões do seu site com o Google Analytics.
-              </p>
-              <Button asChild className="w-full">
-                <Link href="/marketing/google/analytics">Acessar Google Analytics</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          <IntegrationCard
+            title="Google Analytics"
+            description="Desempenho do site"
+            body="Acompanhe tráfego, comportamento dos usuários, conversões e e-commerce no GA4."
+            href="/marketing/google/analytics"
+            action="Acessar Analytics"
+            connected={statuses.googleAnalytics.connected}
+            icon={<Activity className="mr-2 h-5 w-5 text-[#F4B400]" />}
+          />
         </div>
 
-        <MarketingDashboard integrations={integrations} />
+        <MarketingDashboard integrations={integrations} statuses={statuses} refreshKey={refreshKey} />
       </div>
     </div>
+  )
+}
+
+function IntegrationCard({
+  title,
+  description,
+  body,
+  href,
+  action,
+  connected,
+  icon,
+}: {
+  title: string
+  description: string
+  body: string
+  href: string
+  action: string
+  connected: boolean
+  icon: React.ReactNode
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center text-base">
+              {icon}
+              {title}
+            </CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          <span
+            className={
+              connected
+                ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600"
+                : "rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+            }
+          >
+            {connected ? "Conectado" : "Pendente"}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p className="mb-4 text-sm text-muted-foreground">{body}</p>
+        <Button asChild className="w-full">
+          <Link href={href}>{action}</Link>
+        </Button>
+      </CardContent>
+    </Card>
   )
 }

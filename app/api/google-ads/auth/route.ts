@@ -1,33 +1,30 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { ADS_SCOPE } from "@/lib/google-ads"
+import { requireUser } from "@/lib/auth"
+import { ADS_SCOPE, clientId } from "@/lib/google-ads"
+import { createOAuthState } from "@/lib/integrations/oauth-state"
 
-/**
- * Inicia o consentimento OAuth do Google para gerar um refresh token com acesso
- * à Google Ads API. Acesse /api/google-ads/auth no navegador (logado na conta
- * Google dona da conta de anúncios).
- */
 export async function GET(request: NextRequest) {
-  const clientId = process.env.GOOGLE_ADS_CLIENT_ID
-  if (!clientId) {
-    return NextResponse.json(
-      { error: "GOOGLE_ADS_CLIENT_ID não configurado no .env.local" },
-      { status: 400 },
-    )
+  const user = await requireUser()
+  const id = clientId()
+  if (!id) {
+    return NextResponse.json({ error: "GOOGLE_ADS_CLIENT_ID não configurado no ambiente do app." }, { status: 400 })
   }
 
   const origin = new URL(request.url).origin
   const redirectUri = process.env.GOOGLE_ADS_REDIRECT_URI || `${origin}/api/google-ads/callback`
+  const state = createOAuthState({ userId: user.id, provider: "google_ads" })
 
   const authUrl =
     "https://accounts.google.com/o/oauth2/v2/auth?" +
     new URLSearchParams({
-      client_id: clientId,
+      client_id: id,
       redirect_uri: redirectUri,
       response_type: "code",
       scope: ADS_SCOPE,
       access_type: "offline",
-      prompt: "consent", // força a emissão de um novo refresh_token
+      prompt: "consent",
       include_granted_scopes: "true",
+      state,
     }).toString()
 
   return NextResponse.redirect(authUrl)

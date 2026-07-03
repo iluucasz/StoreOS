@@ -1,68 +1,104 @@
-/**
- * Cliente mínimo da Google Analytics Data API (GA4), no mesmo padrão da
- * integração Google Ads. Diferente do Google Ads, o GA4 NÃO exige developer
- * token nem aprovação — basta OAuth + a API ativada + acesso à propriedade.
- *
- * Variáveis (.env.local):
- *   GOOGLE_ANALYTICS_PROPERTY_ID   — ID numérico da propriedade GA4 (ex.: 123456789)
- *   GOOGLE_ANALYTICS_REFRESH_TOKEN — refresh token OAuth (gerado em /api/google-analytics/auth)
- *   GOOGLE_ANALYTICS_CLIENT_ID     — (opcional) reutiliza GOOGLE_ADS_CLIENT_ID se ausente
- *   GOOGLE_ANALYTICS_CLIENT_SECRET — (opcional) reutiliza GOOGLE_ADS_CLIENT_SECRET se ausente
- */
+import { getIntegrationSecrets, getUserIntegration } from "@/lib/integrations/store"
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token"
 const DATA_API = "https://analyticsdata.googleapis.com/v1beta"
 
-/** Escopo OAuth para leitura do Google Analytics. */
 export const ANALYTICS_SCOPE = "https://www.googleapis.com/auth/analytics.readonly"
 
 export class GoogleAnalyticsError extends Error {}
 
-/** O OAuth client é o mesmo do Google Ads (mesmo projeto no Google Cloud). */
+export type GoogleAnalyticsCredentials = {
+  clientId: string
+  clientSecret: string
+  refreshToken: string
+  propertyId: string
+}
+
+function oauthErrorMessage(data: any): string {
+  if (data?.error === "invalid_grant") {
+    return (
+      "Refresh token do Google Analytics inválido, expirado ou revogado. " +
+      "Conecte novamente com o Google para renovar a autorização. " +
+      "Se o app OAuth estiver em modo de teste, publique o app ou adicione o usuário como testador."
+    )
+  }
+
+  if (data?.error === "invalid_client") {
+    return "Client ID ou Client Secret do Google Analytics inválido. Confira as credenciais do OAuth client no Google Cloud."
+  }
+
+  return data.error_description || data.error || "Falha ao renovar o access token OAuth"
+}
+
 export function clientId(): string | undefined {
   return process.env.GOOGLE_ANALYTICS_CLIENT_ID || process.env.GOOGLE_ADS_CLIENT_ID
 }
+
 export function clientSecret(): string | undefined {
   return process.env.GOOGLE_ANALYTICS_CLIENT_SECRET || process.env.GOOGLE_ADS_CLIENT_SECRET
 }
 
-export function propertyId(): string {
-  return (process.env.GOOGLE_ANALYTICS_PROPERTY_ID || "").replace(/\D/g, "")
+export function propertyId(credentials?: Pick<GoogleAnalyticsCredentials, "propertyId">): string {
+  return (credentials?.propertyId || "").replace(/\D/g, "")
 }
 
-export function isConfigured(): boolean {
-  return Boolean(
-    clientId() && clientSecret() && process.env.GOOGLE_ANALYTICS_REFRESH_TOKEN && propertyId(),
-  )
+export function isConfigured(credentials?: GoogleAnalyticsCredentials | null): boolean {
+  return Boolean(credentials?.clientId && credentials.clientSecret && credentials.refreshToken && credentials.propertyId)
 }
 
-async function getAccessToken(): Promise<string> {
+export async function getGoogleAnalyticsCredentials(userId: string): Promise<GoogleAnalyticsCredentials | null> {
+  const id = clientId()
+  const secret = clientSecret()
+  const integration = await getUserIntegration(userId, "google_analytics")
+  const secrets = await getIntegrationSecrets(userId, "google_analytics")
+  const integrationPropertyId = (integration?.providerAccountId || "").replace(/\D/g, "")
+
+  if (id && secret && secrets?.refreshToken && integrationPropertyId) {
+    return {
+      clientId: id,
+      clientSecret: secret,
+      refreshToken: secrets.refreshToken,
+      propertyId: integrationPropertyId,
+    }
+  }
+
+  return null
+}
+
+async function getAccessToken(credentials?: GoogleAnalyticsCredentials | null): Promise<string> {
+  if (!isConfigured(credentials)) {
+    throw new GoogleAnalyticsError("Credenciais do Google Analytics não configuradas")
+  }
+
   const res = await fetch(TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: clientId()!,
-      client_secret: clientSecret()!,
-      refresh_token: process.env.GOOGLE_ANALYTICS_REFRESH_TOKEN!,
+      client_id: credentials!.clientId,
+      client_secret: credentials!.clientSecret,
+      refresh_token: credentials!.refreshToken,
       grant_type: "refresh_token",
     }),
     cache: "no-store",
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok || !data.access_token) {
-    throw new GoogleAnalyticsError(
-      data.error_description || data.error || "Falha ao renovar o access token OAuth",
-    )
+    throw new GoogleAnalyticsError(oauthErrorMessage(data))
   }
   return data.access_token as string
 }
 
-async function callApi(method: "runReport" | "runRealtimeReport", body: object): Promise<any> {
-  if (!isConfigured()) {
+async function callApi(
+  method: "runReport" | "runRealtimeReport",
+  body: object,
+  credentials?: GoogleAnalyticsCredentials | null,
+): Promise<any> {
+  if (!credentials || !isConfigured(credentials)) {
     throw new GoogleAnalyticsError("Credenciais do Google Analytics não configuradas")
   }
-  const token = await getAccessToken()
-  const res = await fetch(`${DATA_API}/properties/${propertyId()}:${method}`, {
+
+  const token = await getAccessToken(credentials)
+  const res = await fetch(`${DATA_API}/properties/${propertyId(credentials)}:${method}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -82,16 +118,14 @@ async function callApi(method: "runReport" | "runRealtimeReport", body: object):
   return payload
 }
 
-export function runReport(body: object) {
-  return callApi("runReport", body)
-}
-export function runRealtimeReport(body: object) {
-  return callApi("runRealtimeReport", body)
+export function runReport(body: object, credentials?: GoogleAnalyticsCredentials | null) {
+  return callApi("runReport", body, credentials)
 }
 
-// ─── Parsers ─────────────────────────────────────────────────────────────────
+export function runRealtimeReport(body: object, credentials?: GoogleAnalyticsCredentials | null) {
+  return callApi("runRealtimeReport", body, credentials)
+}
 
-/** Converte a resposta do GA4 em um array de objetos { dimensão|métrica: valor }. */
 export function parseRows(resp: any): Record<string, any>[] {
   const dimHeaders: string[] = (resp.dimensionHeaders || []).map((h: any) => h.name)
   const metHeaders: string[] = (resp.metricHeaders || []).map((h: any) => h.name)
@@ -107,7 +141,6 @@ export function parseRows(resp: any): Record<string, any>[] {
   })
 }
 
-/** Primeira linha (para relatórios agregados sem dimensões). */
 export function firstRow(resp: any): Record<string, any> {
   return parseRows(resp)[0] || {}
 }
@@ -116,19 +149,15 @@ export function num(v: unknown): number {
   return Number(v ?? 0)
 }
 
-/** Converte a data "YYYYMMDD" do GA4 para "DD/MM". */
 export function gaDate(value: string): string {
   if (!value || value.length !== 8) return value
   return `${value.slice(6, 8)}/${value.slice(4, 6)}`
 }
 
-/** Variação percentual arredondada entre período atual e anterior. */
 export function pct(curr: number, prev: number): number {
   if (!prev) return 0
   return Math.round(((curr - prev) / prev) * 100)
 }
-
-// ─── Tradução de valores do GA4 para PT-BR ───────────────────────────────────
 
 const CHANNEL_PT: Record<string, string> = {
   Direct: "Direto",
@@ -151,7 +180,6 @@ const CHANNEL_PT: Record<string, string> = {
   Unassigned: "Não atribuído",
 }
 
-/** Traduz o nome do grupo de canal padrão do GA4. */
 export function translateChannel(name: string): string {
   return CHANNEL_PT[name] || name
 }
@@ -165,7 +193,6 @@ const TOKEN_PT: Record<string, string> = {
   "(data not available)": "(dados indisponíveis)",
 }
 
-/** Traduz os tokens padrão do GA4 (ex.: "(organic)") mantendo nomes próprios. */
 export function translateToken(name: string): string {
   return TOKEN_PT[name] || name
 }

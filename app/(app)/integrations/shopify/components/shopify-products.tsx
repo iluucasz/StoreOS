@@ -29,7 +29,7 @@ export function ShopifyProducts() {
       .then((r) => r.json())
       .then((data) => {
         if (data.error) throw new Error(data.error)
-        setProducts(data)
+        setProducts(Array.isArray(data) ? data : data.products ?? [])
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))

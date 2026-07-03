@@ -1,125 +1,120 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { useMemo, useState } from "react"
+import { AlertCircle, CheckCircle, ExternalLink, Loader2, RefreshCcw, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { CheckCircle, AlertCircle, Loader2, ExternalLink } from "lucide-react"
-
-type TestState = "idle" | "loading" | "success" | "error"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import type { ShopifyStatus } from "../page"
 
 interface ShopifyConfigProps {
-  isConnected: boolean
-  setIsConnected: (v: boolean) => void
+  status: ShopifyStatus
+  onRecheck: () => void
 }
 
-interface ShopInfo {
-  shop: string
-  domain: string
-  myshopify_domain: string
-  plan: string
+function cleanShop(value: string) {
+  return value.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "")
 }
 
-export function ShopifyConfig({ isConnected, setIsConnected }: ShopifyConfigProps) {
-  const [testState, setTestState] = useState<TestState>(isConnected ? "success" : "idle")
-  const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null)
-  const [errorMsg, setErrorMsg] = useState("")
+export function ShopifyConfig({ status, onRecheck }: ShopifyConfigProps) {
+  const [shop, setShop] = useState(status.myshopify_domain ?? "")
+  const normalizedShop = useMemo(() => cleanShop(shop), [shop])
+  const canConnect = normalizedShop.length > 0
 
-  async function handleTest() {
-    setTestState("loading")
-    setErrorMsg("")
-    try {
-      const res = await fetch("/api/shopify/test")
-      const data = await res.json()
-      if (data.ok) {
-        setTestState("success")
-        setShopInfo(data)
-        setIsConnected(true)
-      } else {
-        setTestState("error")
-        setErrorMsg(data.error ?? "Erro desconhecido")
-        setIsConnected(false)
-      }
-    } catch {
-      setTestState("error")
-      setErrorMsg("Falha ao conectar com o servidor")
-      setIsConnected(false)
-    }
+  function connect() {
+    if (!canConnect) return
+    window.location.href = `/api/shopify/auth?shop=${encodeURIComponent(normalizedShop)}`
   }
 
   return (
-    <div className="max-w-xl space-y-4">
+    <div className="max-w-3xl space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Conexão Shopify</CardTitle>
-          <CardDescription>
-            Integração configurada via variáveis de ambiente no servidor (.env.local)
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShoppingBag className="h-4 w-4 text-[#96bf48]" />
+            Conexão Shopify
+          </CardTitle>
+          <CardDescription>Conecte a loja deste usuário usando OAuth. Tokens não precisam ser copiados manualmente.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-md bg-muted/50 px-4 py-3 text-sm space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Domínio</span>
-              <span className="font-mono text-xs">uy9jyb-i2.myshopify.com</span>
+          {status.loading ? (
+            <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Verificando conexão...
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Token</span>
-              <span className="font-mono text-xs">shpat_••••••••••••••••</span>
+          ) : status.connected ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+                <CheckCircle className="h-4 w-4 shrink-0" />
+                Shopify conectado com sucesso.
+              </div>
+              <div className="grid gap-3 rounded-md border px-4 py-3 text-sm sm:grid-cols-2">
+                <div>
+                  <p className="text-muted-foreground">Loja</p>
+                  <p className="font-medium">{status.shop ?? "Shopify"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Domínio</p>
+                  {status.domain ? (
+                    <a
+                      href={`https://${status.domain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline"
+                    >
+                      {status.domain}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : (
+                    <p className="font-mono text-xs">{status.myshopify_domain ?? "-"}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Plano</p>
+                  <p>{status.plan ?? "-"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Autenticação</p>
+                  <p>OAuth por usuário</p>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Escopos</span>
-              <span className="text-xs">orders, products, inventory, customers</span>
+          ) : status.error ? (
+            <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {status.error}
             </div>
+          ) : (
+            <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              Nenhuma loja conectada para este usuário.
+            </div>
+          )}
+
+          <div className="grid gap-2">
+            <label htmlFor="shopify-shop" className="text-sm font-medium">
+              Domínio da loja
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="shopify-shop"
+                value={shop}
+                onChange={(event) => setShop(event.target.value)}
+                placeholder="minha-loja.myshopify.com"
+                autoComplete="off"
+              />
+              <Button type="button" onClick={connect} disabled={!canConnect} className="shrink-0">
+                <ShoppingBag className="mr-2 h-4 w-4" />
+                Entrar com Shopify
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Use o domínio myshopify.com da loja. O token será salvo criptografado no perfil do usuário.</p>
           </div>
 
-          <Button onClick={handleTest} disabled={testState === "loading"} className="w-full">
-            {testState === "loading" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Testar Conexão
+          <Button type="button" variant="outline" onClick={onRecheck} disabled={status.loading}>
+            {status.loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+            Verificar novamente
           </Button>
-
-          {testState === "success" && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 rounded-md px-3 py-2">
-                <CheckCircle className="h-4 w-4 shrink-0" />
-                Conectado com sucesso!
-              </div>
-              {shopInfo && (
-                <div className="rounded-md border px-4 py-3 text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Loja</span>
-                    <span className="font-medium">{shopInfo.shop}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Domínio</span>
-                    <a href={`https://${shopInfo.domain}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs flex items-center gap-1 text-blue-600 hover:underline">
-                      {shopInfo.domain} <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Plano</span>
-                    <span>{shopInfo.plan}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {testState === "error" && (
-            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 dark:bg-red-950/20 rounded-md px-3 py-2">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {errorMsg}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Como atualizar as credenciais</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-1">
-          <p>Edite o arquivo <span className="font-mono text-xs bg-muted px-1 py-0.5 rounded">.env.local</span> na raiz do projeto:</p>
-          <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto">{`SHOPIFY_STORE_DOMAIN=uy9jyb-i2.myshopify.com\nSHOPIFY_ACCESS_TOKEN=shpat_...`}</pre>
-          <p>Reinicie o servidor após alterar.</p>
         </CardContent>
       </Card>
     </div>

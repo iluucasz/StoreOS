@@ -32,17 +32,21 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     listGoals()
       .then(setGoals)
+      .catch((error) => {
+        console.error("Failed to load goals:", error)
+        setGoals([])
+      })
       .finally(() => setLoading(false))
   }, [])
 
   const updateTarget = (id: string, target: number) => {
     setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, target } : g)))
-    updateGoalTargetAction(id, target).then(setGoals)
+    updateGoalTargetAction(id, target).then(setGoals).catch((error) => console.error("Failed to update goal target:", error))
   }
 
   const updateCurrent = (id: string, current: number) => {
     setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, current } : g)))
-    updateGoalCurrentAction(id, current).then(setGoals)
+    updateGoalCurrentAction(id, current).then(setGoals).catch((error) => console.error("Failed to update goal current:", error))
   }
 
   return (

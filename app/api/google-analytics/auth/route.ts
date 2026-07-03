@@ -1,22 +1,36 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { ANALYTICS_SCOPE, clientId } from "@/lib/google-analytics"
+import { requireUser } from "@/lib/auth"
+import { ANALYTICS_SCOPE, clientId, propertyId as envPropertyId } from "@/lib/google-analytics"
+import { createOAuthState } from "@/lib/integrations/oauth-state"
 
-/**
- * Inicia o consentimento OAuth para gerar um refresh token com acesso de leitura
- * ao Google Analytics. Reutiliza o mesmo OAuth client do Google Ads.
- */
 export async function GET(request: NextRequest) {
+  const user = await requireUser()
   const id = clientId()
+
   if (!id) {
     return NextResponse.json(
-      { error: "GOOGLE_ADS_CLIENT_ID (ou GOOGLE_ANALYTICS_CLIENT_ID) não configurado no .env.local" },
+      { error: "GOOGLE_ADS_CLIENT_ID ou GOOGLE_ANALYTICS_CLIENT_ID não configurado no ambiente do app." },
       { status: 400 },
     )
   }
 
-  const origin = new URL(request.url).origin
+  const { searchParams, origin } = new URL(request.url)
+  const requestedPropertyId = (searchParams.get("propertyId") || envPropertyId() || "").replace(/\D/g, "")
+
+  if (!requestedPropertyId) {
+    return NextResponse.json(
+      { error: "Informe o ID numérico da propriedade GA4 antes de conectar." },
+      { status: 400 },
+    )
+  }
+
   const redirectUri =
     process.env.GOOGLE_ANALYTICS_REDIRECT_URI || `${origin}/api/google-analytics/callback`
+  const state = createOAuthState({
+    userId: user.id,
+    provider: "google_analytics",
+    data: { propertyId: requestedPropertyId },
+  })
 
   const authUrl =
     "https://accounts.google.com/o/oauth2/v2/auth?" +
@@ -28,6 +42,7 @@ export async function GET(request: NextRequest) {
       access_type: "offline",
       prompt: "consent",
       include_granted_scopes: "true",
+      state,
     }).toString()
 
   return NextResponse.redirect(authUrl)

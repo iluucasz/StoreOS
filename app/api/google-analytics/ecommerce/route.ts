@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server"
-import { isConfigured, runReport, parseRows, firstRow, num, gaDate, pct, GoogleAnalyticsError } from "@/lib/google-analytics"
+import { runReport, parseRows, firstRow, num, gaDate, pct, GoogleAnalyticsError } from "@/lib/google-analytics"
+import { getGoogleAnalyticsRequestCredentials } from "@/lib/integrations/google-analytics-request"
 
 /** E-commerce: receita, pedidos, categorias e produtos (14/30 dias). */
 export async function GET() {
-  if (!isConfigured()) {
+  const credentials = await getGoogleAnalyticsRequestCredentials()
+
+  if (!credentials) {
     return NextResponse.json({ configured: false })
   }
 
@@ -15,28 +18,28 @@ export async function GET() {
 
   try {
     const [curr, prev, daily, categories, products] = await Promise.all([
-      runReport({ dateRanges: [{ startDate: "30daysAgo", endDate: "yesterday" }], metrics: totalsMetrics }),
-      runReport({ dateRanges: [{ startDate: "60daysAgo", endDate: "31daysAgo" }], metrics: totalsMetrics }),
+      runReport({ dateRanges: [{ startDate: "30daysAgo", endDate: "yesterday" }], metrics: totalsMetrics }, credentials),
+      runReport({ dateRanges: [{ startDate: "60daysAgo", endDate: "31daysAgo" }], metrics: totalsMetrics }, credentials),
       runReport({
         dateRanges: [{ startDate: "14daysAgo", endDate: "yesterday" }],
         dimensions: [{ name: "date" }],
         metrics: [{ name: "purchaseRevenue" }, { name: "ecommercePurchases" }],
         orderBys: [{ dimension: { dimensionName: "date" } }],
-      }),
+      }, credentials),
       runReport({
         dateRanges: [{ startDate: "30daysAgo", endDate: "yesterday" }],
         dimensions: [{ name: "itemCategory" }],
         metrics: [{ name: "itemRevenue" }],
         orderBys: [{ desc: true, metric: { metricName: "itemRevenue" } }],
         limit: 8,
-      }),
+      }, credentials),
       runReport({
         dateRanges: [{ startDate: "30daysAgo", endDate: "yesterday" }],
         dimensions: [{ name: "itemName" }],
         metrics: [{ name: "itemsPurchased" }, { name: "itemRevenue" }],
         orderBys: [{ desc: true, metric: { metricName: "itemRevenue" } }],
         limit: 10,
-      }),
+      }, credentials),
     ])
 
     const c = firstRow(curr)

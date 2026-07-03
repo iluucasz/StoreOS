@@ -1,19 +1,22 @@
 import { NextResponse } from "next/server"
-import { isConfigured, graph, accountId, timeRange, findAction, num, PURCHASE, MetaError } from "@/lib/meta-ads"
+import { graph, accountId, timeRange, findAction, num, PURCHASE, MetaError } from "@/lib/meta-ads"
+import { getMetaRequestCredentials } from "@/lib/integrations/meta-ads-request"
 
 const GENDER_PT: Record<string, string> = { male: "Masculino", female: "Feminino", unknown: "Não informado" }
 
 /** Demografia (idade × gênero) dos últimos 30 dias. */
 export async function GET() {
-  if (!isConfigured()) return NextResponse.json({ configured: false })
+  const credentials = await getMetaRequestCredentials()
+
+  if (!credentials) return NextResponse.json({ configured: false })
 
   try {
-    const data = await graph(`${accountId()}/insights`, {
+    const data = await graph(`${accountId(credentials)}/insights`, {
       fields: "spend,impressions,clicks,actions",
       breakdowns: "age,gender",
       time_range: timeRange(30, 0),
       limit: "300",
-    })
+    }, credentials)
 
     const rows = (data.data ?? []).map((r: any) => ({
       age: r.age,

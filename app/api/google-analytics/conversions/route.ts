@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server"
-import { isConfigured, runReport, parseRows, firstRow, num, gaDate, pct, GoogleAnalyticsError } from "@/lib/google-analytics"
+import { runReport, parseRows, firstRow, num, gaDate, pct, GoogleAnalyticsError } from "@/lib/google-analytics"
+import { getGoogleAnalyticsRequestCredentials } from "@/lib/integrations/google-analytics-request"
 
 /** Conversões: métricas-resumo, tendência (14d) e por evento (30d). */
 export async function GET() {
-  if (!isConfigured()) {
+  const credentials = await getGoogleAnalyticsRequestCredentials()
+
+  if (!credentials) {
     return NextResponse.json({ configured: false })
   }
 
@@ -11,14 +14,14 @@ export async function GET() {
 
   try {
     const [curr, prev, trend, goals] = await Promise.all([
-      runReport({ dateRanges: [{ startDate: "30daysAgo", endDate: "yesterday" }], metrics: totalsMetrics }),
-      runReport({ dateRanges: [{ startDate: "60daysAgo", endDate: "31daysAgo" }], metrics: totalsMetrics }),
+      runReport({ dateRanges: [{ startDate: "30daysAgo", endDate: "yesterday" }], metrics: totalsMetrics }, credentials),
+      runReport({ dateRanges: [{ startDate: "60daysAgo", endDate: "31daysAgo" }], metrics: totalsMetrics }, credentials),
       runReport({
         dateRanges: [{ startDate: "14daysAgo", endDate: "yesterday" }],
         dimensions: [{ name: "date" }],
         metrics: [{ name: "conversions" }, { name: "sessions" }],
         orderBys: [{ dimension: { dimensionName: "date" } }],
-      }),
+      }, credentials),
       runReport({
         dateRanges: [{ startDate: "30daysAgo", endDate: "yesterday" }],
         dimensions: [{ name: "eventName" }],
@@ -28,7 +31,7 @@ export async function GET() {
         },
         orderBys: [{ desc: true, metric: { metricName: "conversions" } }],
         limit: 10,
-      }),
+      }, credentials),
     ])
 
     const c = firstRow(curr)

@@ -42,21 +42,25 @@ export function PromotionsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     listPromotions()
       .then(setPromotions)
+      .catch((error) => {
+        console.error("Failed to load promotions:", error)
+        setPromotions([])
+      })
       .finally(() => setLoading(false))
   }, [])
 
   const addPromotion = (data: Omit<Promotion, "id" | "usageCount">) => {
-    createPromotion(data).then(setPromotions)
+    createPromotion(data).then(setPromotions).catch((error) => console.error("Failed to create promotion:", error))
   }
 
   const updatePromotion = (id: string, data: Partial<Promotion>) => {
     setPromotions((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)))
-    updatePromotionAction(id, data).then(setPromotions)
+    updatePromotionAction(id, data).then(setPromotions).catch((error) => console.error("Failed to update promotion:", error))
   }
 
   const deletePromotion = (id: string) => {
     setPromotions((prev) => prev.filter((p) => p.id !== id))
-    deletePromotionAction(id).then(setPromotions)
+    deletePromotionAction(id).then(setPromotions).catch((error) => console.error("Failed to delete promotion:", error))
   }
 
   return (

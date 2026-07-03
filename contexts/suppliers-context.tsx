@@ -43,21 +43,25 @@ export function SuppliersProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     listSuppliers()
       .then(setSuppliers)
+      .catch((error) => {
+        console.error("Failed to load suppliers:", error)
+        setSuppliers([])
+      })
       .finally(() => setLoading(false))
   }, [])
 
   const addSupplier = (data: Omit<Supplier, "id">) => {
-    createSupplier(data).then(setSuppliers)
+    createSupplier(data).then(setSuppliers).catch((error) => console.error("Failed to create supplier:", error))
   }
 
   const updateSupplier = (id: string, data: Partial<Supplier>) => {
     setSuppliers((prev) => prev.map((s) => (s.id === id ? { ...s, ...data } : s)))
-    updateSupplierAction(id, data).then(setSuppliers)
+    updateSupplierAction(id, data).then(setSuppliers).catch((error) => console.error("Failed to update supplier:", error))
   }
 
   const deleteSupplier = (id: string) => {
     setSuppliers((prev) => prev.filter((s) => s.id !== id))
-    deleteSupplierAction(id).then(setSuppliers)
+    deleteSupplierAction(id).then(setSuppliers).catch((error) => console.error("Failed to delete supplier:", error))
   }
 
   return (

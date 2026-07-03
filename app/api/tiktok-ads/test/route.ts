@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server"
-import { isConfigured, tiktok, advertiserId, TikTokError } from "@/lib/tiktok-ads"
+import { tiktok, advertiserId, TikTokError } from "@/lib/tiktok-ads"
+import { getTikTokRequestCredentials } from "@/lib/integrations/tiktok-ads-request"
 
 /** Verifica credenciais e acesso ao anunciante. */
 export async function GET() {
-  if (!isConfigured()) {
+  const credentials = await getTikTokRequestCredentials()
+
+  if (!credentials) {
     return NextResponse.json({ configured: false, connected: false })
   }
   try {
     const data = await tiktok("/advertiser/info/", {
-      advertiser_ids: [advertiserId()],
+      advertiser_ids: [advertiserId(credentials)],
       fields: ["name", "currency"],
-    })
+    }, credentials)
     const adv = data?.list?.[0]
     return NextResponse.json({
       configured: true,

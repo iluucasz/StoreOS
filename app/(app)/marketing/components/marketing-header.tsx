@@ -1,121 +1,106 @@
 "use client"
 
+import Link from "next/link"
+import { AlertTriangle, BarChart4, CheckCircle2, Loader2, RefreshCw } from "lucide-react"
+import { MetaIcon, TikTokIcon } from "@/components/brand-icons"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { RefreshCw, AlertTriangle, Facebook, BarChart4, LineChart } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import type { PlatformStatuses } from "./marketing-dashboard"
 
-interface MarketingHeaderProps {
-  integrations: {
-    facebook: boolean
-    googleAds: boolean
-    googleAnalytics: boolean
-  }
-}
+const platformLinks = [
+  { key: "meta", label: "Meta Ads", href: "/marketing/facebook", icon: MetaIcon },
+  { key: "googleAds", label: "Google Ads", href: "/marketing/google/ads", icon: BarChart4 },
+  { key: "tiktok", label: "TikTok Ads", href: "/marketing/tiktok", icon: TikTokIcon },
+  { key: "googleAnalytics", label: "Analytics", href: "/marketing/google/analytics", icon: BarChart4 },
+] as const
 
-export function MarketingHeader({ integrations }: MarketingHeaderProps) {
-  const anyConnected = Object.values(integrations).some((status) => status)
-  const allConnected = Object.values(integrations).every((status) => status)
-
-  const connectedCount = Object.values(integrations).filter((status) => status).length
-  const totalPlatforms = Object.keys(integrations).length
+export function MarketingHeader({ statuses, onRefresh }: { statuses: PlatformStatuses; onRefresh: () => void }) {
+  const values = Object.values(statuses)
+  const loading = values.some((status) => status.loading)
+  const connectedCount = values.filter((status) => status.connected).length
+  const totalPlatforms = values.length
+  const anyConnected = connectedCount > 0
+  const allConnected = connectedCount === totalPlatforms
+  const missing = platformLinks.filter((platform) => !statuses[platform.key].connected)
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold">Marketing Dashboard</h1>
-          <p className="text-muted-foreground">Análise e otimização de campanhas de marketing</p>
+          <h1 className="text-2xl font-bold">Marketing</h1>
+          <p className="text-muted-foreground">Análise real de campanhas, tráfego e conversões.</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {anyConnected ? (
-            <>
-              <Badge
-                variant="outline"
-                className={`${allConnected ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800" : "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800"}`}
-              >
-                {connectedCount}/{totalPlatforms} Plataformas Conectadas
-              </Badge>
-              <Button size="sm" variant="outline" className="gap-1">
-                <RefreshCw className="h-4 w-4" />
-                Atualizar Dados
-              </Button>
-            </>
-          ) : (
-            <Badge
-              variant="outline"
-              className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 gap-1"
-            >
-              <AlertTriangle className="h-3.5 w-3.5" />
-              Nenhuma plataforma conectada
-            </Badge>
-          )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            variant="outline"
+            className={
+              allConnected
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400"
+                : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
+            }
+          >
+            {loading ? (
+              <span className="inline-flex items-center gap-1">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Verificando
+              </span>
+            ) : (
+              `${connectedCount}/${totalPlatforms} plataformas conectadas`
+            )}
+          </Badge>
+          <Button size="sm" variant="outline" className="gap-1" onClick={() => void onRefresh()} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Atualizar dados
+          </Button>
         </div>
       </div>
 
-      {!anyConnected && (
-        <Card className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
-          <CardContent className="p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
-              <AlertTriangle className="h-5 w-5" />
-              <p>Conecte-se às plataformas de marketing para sincronizar suas campanhas e métricas.</p>
+      {!anyConnected ? (
+        <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
+          <CardContent className="flex flex-col items-start justify-between gap-4 p-4 md:flex-row md:items-center">
+            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-5 w-5 shrink-0" />
+              <p>Conecte pelo menos uma plataforma para preencher esta visão com dados reais.</p>
             </div>
-            <div className="flex gap-2">
-              <Button className="gap-2 whitespace-nowrap" variant="outline" onClick={() => {}}>
-                <Facebook className="h-4 w-4" />
-                Facebook
-              </Button>
-              <Button className="gap-2 whitespace-nowrap" variant="outline" onClick={() => {}}>
-                <BarChart4 className="h-4 w-4" />
-                Google Ads
-              </Button>
-              <Button className="gap-2 whitespace-nowrap" variant="outline" onClick={() => {}}>
-                <LineChart className="h-4 w-4" />
-                Analytics
-              </Button>
+            <div className="flex flex-wrap gap-2">
+              {platformLinks.map((platform) => (
+                <Button key={platform.key} asChild className="gap-2 whitespace-nowrap" variant="outline" size="sm">
+                  <Link href={platform.href}>
+                    <platform.icon className="h-4 w-4" />
+                    {platform.label}
+                  </Link>
+                </Button>
+              ))}
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {anyConnected && !allConnected && (
-        <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
-          <CardContent className="p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-start gap-2 text-blue-700 dark:text-blue-400">
-              <AlertTriangle className="h-5 w-5 mt-0.5" />
+      ) : !allConnected ? (
+        <Card className="border-border bg-card">
+          <CardContent className="flex flex-col items-start justify-between gap-4 p-4 md:flex-row md:items-center">
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
               <div>
-                <p>Algumas plataformas ainda não estão conectadas:</p>
-                <ul className="list-disc ml-5 mt-1 text-sm">
-                  {!integrations.facebook && <li>Facebook Ads</li>}
-                  {!integrations.googleAds && <li>Google Ads</li>}
-                  {!integrations.googleAnalytics && <li>Google Analytics</li>}
-                </ul>
+                <p className="font-medium">Dados reais carregados das integrações conectadas.</p>
+                <p className="text-sm text-muted-foreground">
+                  Ainda falta conectar: {missing.map((platform) => platform.label).join(", ")}.
+                </p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {!integrations.facebook && (
-                <Button className="gap-2 whitespace-nowrap" variant="outline" size="sm" onClick={() => {}}>
-                  <Facebook className="h-4 w-4" />
-                  Conectar Facebook
+              {missing.map((platform) => (
+                <Button key={platform.key} asChild className="gap-2 whitespace-nowrap" variant="outline" size="sm">
+                  <Link href={platform.href}>
+                    <platform.icon className="h-4 w-4" />
+                    Conectar {platform.label}
+                  </Link>
                 </Button>
-              )}
-              {!integrations.googleAds && (
-                <Button className="gap-2 whitespace-nowrap" variant="outline" size="sm" onClick={() => {}}>
-                  <BarChart4 className="h-4 w-4" />
-                  Conectar Google Ads
-                </Button>
-              )}
-              {!integrations.googleAnalytics && (
-                <Button className="gap-2 whitespace-nowrap" variant="outline" size="sm" onClick={() => {}}>
-                  <LineChart className="h-4 w-4" />
-                  Conectar Analytics
-                </Button>
-              )}
+              ))}
             </div>
           </CardContent>
         </Card>
-      )}
+      ) : null}
     </div>
   )
 }

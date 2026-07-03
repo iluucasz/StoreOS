@@ -66,6 +66,10 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     listProducts()
       .then((rows) => setProducts(rows.map(fromDTO)))
+      .catch((error) => {
+        console.error("Failed to load products:", error)
+        setProducts([])
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -77,18 +81,24 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
       margin: product.margin,
       stock: product.stock,
       variants: (product.variants ?? []).map((v) => ({ id: v.id, size: v.size, color: v.color, stock: v.stock })),
-    }).then((rows) => setProducts(rows.map(fromDTO)))
+    })
+      .then((rows) => setProducts(rows.map(fromDTO)))
+      .catch((error) => console.error("Failed to create product:", error))
   }
 
   const updateProduct = (product: Product) => {
     // optimistic update
     setProducts((prev) => prev.map((p) => (p.id === product.id ? product : p)))
-    updateProductAction(toDTO(product)).then((rows) => setProducts(rows.map(fromDTO)))
+    updateProductAction(toDTO(product))
+      .then((rows) => setProducts(rows.map(fromDTO)))
+      .catch((error) => console.error("Failed to update product:", error))
   }
 
   const deleteProduct = (id: number) => {
     setProducts((prev) => prev.filter((p) => p.id !== id))
-    deleteProductAction(id).then((rows) => setProducts(rows.map(fromDTO)))
+    deleteProductAction(id)
+      .then((rows) => setProducts(rows.map(fromDTO)))
+      .catch((error) => console.error("Failed to delete product:", error))
   }
 
   const getProductById = (id: number) => products.find((p) => p.id === id)

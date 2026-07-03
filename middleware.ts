@@ -4,7 +4,7 @@ const SESSION_COOKIE = "storeos_session"
 
 // Paths that don't require authentication
 const PUBLIC_PATHS = ["/login", "/signup"]
-const PUBLIC_API_PREFIXES = ["/api/auth", "/api/shopify/callback", "/api/shopify/auth"]
+const PUBLIC_API_PREFIXES = ["/api/auth", "/api/shopify/callback", "/api/shopify/auth", "/api/crm/web-to-lead"]
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl

@@ -1,10 +1,20 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, Loader2 } from "lucide-react"
+import {
+  ErrorState as BaseErrorState,
+  IntegrationRequired,
+  LoadingState as BaseLoadingState,
+} from "@/components/feedback-state"
 
-/** Busca dados de uma rota da Meta quando conectado, com loading/erro. */
+async function readJson(response: Response) {
+  try {
+    return await response.json()
+  } catch {
+    return { error: "Resposta inesperada do servidor." }
+  }
+}
+
 export function useMetaData<T>(path: string, isConnected: boolean) {
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState(false)
@@ -15,15 +25,17 @@ export function useMetaData<T>(path: string, isConnected: boolean) {
     let active = true
     setLoading(true)
     setError(null)
+
     fetch(path)
-      .then((r) => r.json())
-      .then((json) => {
+      .then(async (response) => {
+        const json = await readJson(response)
         if (!active) return
-        if (json.error) setError(json.error)
+        if (!response.ok || json.error) setError(json.error || "Não foi possível carregar dados da Meta.")
         else setData(json)
       })
-      .catch(() => active && setError("Falha ao carregar dados da Meta"))
+      .catch(() => active && setError("Não foi possível conectar à Meta agora."))
       .finally(() => active && setLoading(false))
+
     return () => {
       active = false
     }
@@ -34,29 +46,21 @@ export function useMetaData<T>(path: string, isConnected: boolean) {
 
 export function NotConnected({ what }: { what: string }) {
   return (
-    <Alert>
-      <AlertCircle className="h-4 w-4" />
-      <AlertTitle>Não conectado</AlertTitle>
-      <AlertDescription>Configure a integração na aba “Integração” para visualizar {what}.</AlertDescription>
-    </Alert>
+    <IntegrationRequired
+      service="Meta Ads"
+      description={`Configure a integração para visualizar ${what}.`}
+    />
   )
 }
 
-export function LoadingState() {
-  return (
-    <div className="flex items-center justify-center py-16 text-muted-foreground">
-      <Loader2 className="h-5 w-5 animate-spin mr-2" />
-      Carregando dados da Meta...
-    </div>
-  )
+export function LoadingStateMeta() {
+  return <BaseLoadingState label="Carregando dados da Meta..." />
 }
 
-export function ErrorState({ message }: { message: string }) {
-  return (
-    <Alert variant="destructive">
-      <AlertCircle className="h-4 w-4" />
-      <AlertTitle>Erro ao carregar dados</AlertTitle>
-      <AlertDescription>{message}</AlertDescription>
-    </Alert>
-  )
+export { LoadingStateMeta as LoadingState }
+
+export function ErrorStateMeta({ message }: { message: string }) {
+  return <BaseErrorState description={message} />
 }
+
+export { ErrorStateMeta as ErrorState }

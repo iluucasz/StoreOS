@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import {
-  isConfigured,
   runQuery,
   fromMicros,
   num,
@@ -8,10 +7,13 @@ import {
   translateMatchType,
   GoogleAdsError,
 } from "@/lib/google-ads"
+import { getGoogleAdsRequestCredentials } from "@/lib/integrations/google-ads-request"
 
 /** Palavras-chave (keyword_view) com métricas dos últimos 30 dias. */
 export async function GET() {
-  if (!isConfigured()) {
+  const credentials = await getGoogleAdsRequestCredentials()
+
+  if (!credentials) {
     return NextResponse.json({ configured: false })
   }
 
@@ -25,6 +27,7 @@ export async function GET() {
        WHERE segments.date DURING LAST_30_DAYS
        ORDER BY metrics.cost_micros DESC
        LIMIT 50`,
+      credentials,
     )
 
     const keywords = rows.map((r, i) => ({

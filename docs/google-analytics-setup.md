@@ -1,79 +1,60 @@
-# Integração com o Google Analytics 4 — guia de configuração
+# Integração com Google Analytics 4
 
-Usa a **Google Analytics Data API (GA4)** com OAuth. Diferente do Google Ads,
-**não precisa de developer token nem aprovação** — funciona assim que você
-autorizar. Reutiliza o mesmo OAuth client (projeto Google Cloud) do Google Ads.
+O Google Analytics usa OAuth por usuário. Em produção, o cliente final não copia
+refresh token nem edita `.env`: ele informa o ID numérico da propriedade GA4 e
+clica em **Entrar com Google**.
 
-## Variáveis (.env.local)
+## Variáveis globais do app
 
-| Variável | O que é |
+Estas variáveis pertencem ao produto, não ao cliente:
+
+| Variável | Uso |
 |---|---|
-| `GOOGLE_ANALYTICS_PROPERTY_ID` | ID **numérico** da propriedade GA4 (ex.: `123456789`) |
-| `GOOGLE_ANALYTICS_REFRESH_TOKEN` | Gerado pelo fluxo OAuth (passo 3) |
-| `GOOGLE_ADS_CLIENT_ID` / `GOOGLE_ADS_CLIENT_SECRET` | Reutilizados do Google Ads (já preenchidos) |
+| `GOOGLE_ADS_CLIENT_ID` ou `GOOGLE_ANALYTICS_CLIENT_ID` | OAuth Client ID do app no Google Cloud |
+| `GOOGLE_ADS_CLIENT_SECRET` ou `GOOGLE_ANALYTICS_CLIENT_SECRET` | OAuth Client Secret do app |
+| `GOOGLE_ANALYTICS_REDIRECT_URI` | Callback público, ex.: `https://app.seudominio.com/api/google-analytics/callback` |
+| `INTEGRATION_ENCRYPTION_KEY` | Chave de 32 bytes para criptografar tokens salvos no banco |
 
-Reinicie o servidor (`npm run dev`) após alterar o `.env.local`.
+Não use Property ID ou refresh token no ambiente do servidor. Esses dados são
+salvos por usuário em `user_integrations`.
 
----
+## Google Cloud
 
-## Passo 1 — Ativar a API e o redirect
+1. Ative a **Google Analytics Data API** no projeto.
+2. No OAuth Client, cadastre o redirect exato:
 
-1. No **Google Cloud Console** (mesmo projeto do Google Ads), vá em
-   *APIs e serviços → Biblioteca*, busque **Google Analytics Data API** e clique **Ativar**.
-2. Em *APIs e serviços → Credenciais*, abra o seu OAuth client (o mesmo do Google Ads)
-   e em **URIs de redirecionamento autorizados** adicione:
-   ```
-   http://localhost:3000/api/google-analytics/callback
-   ```
-   Salve.
+```txt
+http://localhost:3000/api/google-analytics/callback
+```
 
-## Passo 2 — Descobrir o Property ID
+Em produção, cadastre também o domínio real:
 
-1. Abra o **Google Analytics** (analytics.google.com).
-2. Canto inferior esquerdo: **Administrador** (engrenagem).
-3. Na coluna **Propriedade**, clique em **Configurações da propriedade**.
-4. Copie o **ID da propriedade** (número, ex.: `123456789`) para
-   `GOOGLE_ANALYTICS_PROPERTY_ID`.
-   > ⚠️ Não confunda com o **ID de medição** (`G-XXXXXXX`) — a Data API usa o ID numérico.
+```txt
+https://app.seudominio.com/api/google-analytics/callback
+```
 
-## Passo 3 — Gerar o Refresh Token
+## Fluxo do cliente
 
-1. Com o Client ID/Secret preenchidos e o servidor reiniciado, abra:
-   ```
-   http://localhost:3000/api/google-analytics/auth
-   ```
-   (ou o botão em **Marketing → Google Analytics → Integração → Conectar com Google**)
-2. Faça login com a conta Google que tem acesso à propriedade GA4 e aceite.
-3. Copie o `refresh_token` exibido para `GOOGLE_ANALYTICS_REFRESH_TOKEN`.
-4. Reinicie o servidor.
+1. O cliente acessa **Marketing → Google Analytics → Integração**.
+2. Informa o ID numérico da propriedade GA4.
+3. Clica em **Entrar com Google**.
+4. O callback salva a integração em `user_integrations`, ligada ao `userId`.
+5. Os endpoints de Analytics passam a ler o token criptografado do usuário.
 
----
+## Banco
 
-## Testar
+A tabela `user_integrations` guarda o status, conta conectada e tokens
+criptografados por usuário. Rode as migrations antes de usar em outro ambiente:
 
-- Pela linha de comando: `node scripts/google-analytics-check.mjs` → deve mostrar
-  **✅ CONECTADO** com usuários/sessões/receita dos últimos 7 dias.
-- Na interface: **Marketing → Google Analytics** deve mostrar **🟢 Conectado** e as 6
-  abas (Dashboard, Aquisição, Engajamento, Conversões, E-commerce, Tempo Real) com dados reais.
+```bash
+npm run db:migrate
+```
 
 ## Solução de problemas
 
 | Mensagem | Causa provável |
 |---|---|
-| `Credenciais do Google Analytics não configuradas` | Falta `PROPERTY_ID` ou `REFRESH_TOKEN` no `.env.local` |
-| `Falha ao renovar o access token OAuth` | Client ID/Secret ou refresh token inválidos |
-| `User does not have sufficient permissions for this property` | A conta do refresh token não tem acesso à propriedade GA4, ou o Property ID está errado |
-| `Google Analytics Data API has not been used in project ...` | Falta ativar a Data API (passo 1) |
-| Erro 403 `access_denied` no login | Adicione seu e-mail em *Usuários de teste* na tela de consentimento OAuth |
-
-## Endpoints criados
-
-- `GET /api/google-analytics/auth` — inicia o OAuth (gera refresh token)
-- `GET /api/google-analytics/callback` — recebe o código e exibe o refresh token
-- `GET /api/google-analytics/test` — status da conexão
-- `GET /api/google-analytics/dashboard` — visão geral (7 dias)
-- `GET /api/google-analytics/acquisition` — canais, campanhas, referências (30 dias)
-- `GET /api/google-analytics/engagement` — páginas e dispositivos (7/30 dias)
-- `GET /api/google-analytics/conversions` — conversões por evento (14/30 dias)
-- `GET /api/google-analytics/ecommerce` — receita, pedidos, produtos (14/30 dias)
-- `GET /api/google-analytics/realtime` — usuários ativos agora (últimos 30 min)
+| `redirect_uri_mismatch` | Redirect cadastrado no Google Cloud não bate exatamente com a URL usada pelo app |
+| `invalid_grant` | Refresh token expirou, foi revogado ou o app OAuth está em modo de teste |
+| `User does not have sufficient permissions` | A conta Google não tem acesso à propriedade GA4 |
+| `Google Analytics Data API has not been used` | A Data API não foi ativada no projeto |

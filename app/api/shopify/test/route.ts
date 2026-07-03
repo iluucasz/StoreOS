@@ -1,31 +1,28 @@
 import { NextResponse } from "next/server"
-
-const SHOP = process.env.SHOPIFY_STORE_DOMAIN!
-const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!
+import { getShopifyRequestCredentials } from "@/lib/integrations/shopify-request"
+import { shopifyFetch, ShopifyError } from "@/lib/shopify"
 
 export async function GET() {
-  if (!SHOP || !TOKEN) {
-    return NextResponse.json({ ok: false, error: "Credenciais não configuradas no servidor" }, { status: 400 })
+  const credentials = await getShopifyRequestCredentials()
+
+  if (!credentials) {
+    return NextResponse.json({ ok: false, configured: false, connected: false })
   }
 
   try {
-    const res = await fetch(`https://${SHOP}/admin/api/2025-01/shop.json`, {
-      headers: { "X-Shopify-Access-Token": TOKEN },
-    })
+    const data = await shopifyFetch<{ shop: any }>(credentials, "/shop.json")
 
-    if (!res.ok) {
-      return NextResponse.json({ ok: false, error: `Shopify retornou ${res.status}` }, { status: 502 })
-    }
-
-    const data = await res.json()
     return NextResponse.json({
       ok: true,
+      configured: true,
+      connected: true,
       shop: data.shop.name,
       domain: data.shop.domain,
       myshopify_domain: data.shop.myshopify_domain,
       plan: data.shop.plan_name,
     })
   } catch (e) {
-    return NextResponse.json({ ok: false, error: String(e) }, { status: 502 })
+    const message = e instanceof ShopifyError ? e.message : "Erro ao conectar à Shopify"
+    return NextResponse.json({ ok: false, configured: true, connected: false, error: message }, { status: 502 })
   }
 }

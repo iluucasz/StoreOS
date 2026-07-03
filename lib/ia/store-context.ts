@@ -1,6 +1,4 @@
-const SHOP = process.env.SHOPIFY_STORE_DOMAIN
-const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN
-const BASE = SHOP ? `https://${SHOP}/admin/api/2025-01` : ""
+import { getShopifyCredentials, shopifyFetch } from "@/lib/shopify"
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const ORDER_LIMIT = 100
@@ -161,33 +159,23 @@ function productSalesLines(orders: ShopifyOrder[], since: Date) {
   return [...sales.values()].sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue)
 }
 
-export async function fetchStoreContext() {
-  if (!SHOP || !TOKEN) {
+export async function fetchStoreContext(userId: string) {
+  const credentials = await getShopifyCredentials(userId)
+
+  if (!credentials) {
     return "Dados da loja indisponíveis: integração Shopify não configurada."
   }
 
   try {
-    const [ordersRes, productsRes] = await Promise.all([
-      fetch(
-        `${BASE}/orders.json?status=any&limit=${ORDER_LIMIT}&fields=id,name,created_at,total_price,financial_status,fulfillment_status,line_items`,
-        {
-          cache: "no-store",
-          headers: { "X-Shopify-Access-Token": TOKEN },
-        },
-      ),
-      fetch(`${BASE}/products.json?limit=${PRODUCT_LIMIT}&fields=id,title,status,variants`, {
-        cache: "no-store",
-        headers: { "X-Shopify-Access-Token": TOKEN },
-      }),
-    ])
-
-    if (!ordersRes.ok || !productsRes.ok) {
-      throw new Error("Shopify API indisponível")
-    }
-
     const [{ orders = [] }, { products = [] }] = await Promise.all([
-      ordersRes.json() as Promise<{ orders?: ShopifyOrder[] }>,
-      productsRes.json() as Promise<{ products?: ShopifyProduct[] }>,
+      shopifyFetch<{ orders?: ShopifyOrder[] }>(
+        credentials,
+        `/orders.json?status=any&limit=${ORDER_LIMIT}&fields=id,name,created_at,total_price,financial_status,fulfillment_status,line_items`,
+      ),
+      shopifyFetch<{ products?: ShopifyProduct[] }>(
+        credentials,
+        `/products.json?limit=${PRODUCT_LIMIT}&fields=id,title,status,variants`,
+      ),
     ])
 
     const now = new Date()
@@ -244,7 +232,7 @@ export async function fetchStoreContext() {
     if (diagnostics.length === 0) diagnostics.push("Nenhum gargalo evidente foi detectado apenas pelos dados de pedidos e estoque.")
 
     return `
-DADOS REAIS DA LOJA (${SHOP}):
+DADOS REAIS DA LOJA (${credentials.shop}):
 Data atual: ${now.toLocaleDateString("pt-BR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
 Amostra analisada: últimos ${orders.length} pedidos e até ${products.length} produtos da Shopify.
 

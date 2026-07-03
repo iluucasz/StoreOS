@@ -59,7 +59,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("pricingSettings")
-      if (saved) return { ...defaultSettings, ...JSON.parse(saved) }
+      if (saved) {
+        try {
+          return { ...defaultSettings, ...JSON.parse(saved) }
+        } catch (error) {
+          console.error("Failed to parse saved settings:", error)
+          localStorage.removeItem("pricingSettings")
+        }
+      }
     }
     return defaultSettings
   })

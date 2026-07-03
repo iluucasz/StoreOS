@@ -31,6 +31,14 @@ export const chatRole = pgEnum("chat_role", ["user", "assistant"])
 export const returnMotivo = pgEnum("return_motivo", ["defeito", "arrependimento", "tamanho", "outro"])
 export const returnStatus = pgEnum("return_status", ["aguardando", "aprovada", "reembolsada", "recusada"])
 export const trocaStatus = pgEnum("troca_status", ["aguardando_devolucao", "item_recebido", "novo_enviado", "concluida", "cancelada"])
+export const integrationProvider = pgEnum("integration_provider", [
+  "google_analytics",
+  "google_ads",
+  "meta_ads",
+  "tiktok_ads",
+  "shopify",
+])
+export const integrationStatus = pgEnum("integration_status", ["connected", "needs_reauth", "error"])
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
 export const users = pgTable("users", {
@@ -61,6 +69,28 @@ export const userCredentials = pgTable("user_credentials", {
   whatsappApiKey: text("whatsapp_api_key"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 })
+
+export const userIntegrations = pgTable("user_integrations", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  provider: integrationProvider("provider").notNull(),
+  status: integrationStatus("status").notNull().default("connected"),
+  providerAccountId: text("provider_account_id"),
+  accountName: text("account_name"),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  tokenType: text("token_type"),
+  scope: text("scope"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  settings: jsonb("settings").$type<Record<string, unknown>>().notNull().default({}),
+  lastError: text("last_error"),
+  connectedAt: timestamp("connected_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  userProviderUnique: uniqueIndex("user_integrations_user_provider_unique").on(t.userId, t.provider),
+  userProviderIdx: index("user_integrations_user_provider_idx").on(t.userId, t.provider),
+}))
 
 // ─── Settings (per-user, no credential fields) ──────────────────────────────
 export const settings = pgTable("settings", {
@@ -290,8 +320,13 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   stockEntries: many(stockEntries),
   returns: many(returns),
   trocas: many(trocas),
+  integrations: many(userIntegrations),
   credentials: one(userCredentials),
   settings: one(settings),
+}))
+
+export const userIntegrationsRelations = relations(userIntegrations, ({ one }) => ({
+  user: one(users, { fields: [userIntegrations.userId], references: [users.id] }),
 }))
 
 export const productsRelations = relations(products, ({ many, one }) => ({
@@ -335,3 +370,4 @@ export type DBNotification = typeof notifications.$inferSelect
 export type DBStockEntry = typeof stockEntries.$inferSelect
 export type DBSettings = typeof settings.$inferSelect
 export type DBCredentials = typeof userCredentials.$inferSelect
+export type DBUserIntegration = typeof userIntegrations.$inferSelect

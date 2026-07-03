@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"
 import {
-  isConfigured,
   runQuery,
   num,
   translateStatus,
   translateConversionCategory,
   GoogleAdsError,
 } from "@/lib/google-ads"
+import { getGoogleAdsRequestCredentials } from "@/lib/integrations/google-ads-request"
 
 function translateAttribution(model: string | undefined): string {
   switch (model) {
@@ -35,7 +35,9 @@ function translateCounting(type: string | undefined): string {
 
 /** Conversões: desempenho por ação (30 dias) + configuração das ações. */
 export async function GET() {
-  if (!isConfigured()) {
+  const credentials = await getGoogleAdsRequestCredentials()
+
+  if (!credentials) {
     return NextResponse.json({ configured: false })
   }
 
@@ -46,6 +48,7 @@ export async function GET() {
                 metrics.conversions, metrics.conversions_value
          FROM campaign
          WHERE segments.date DURING LAST_30_DAYS AND metrics.conversions > 0`,
+        credentials,
       ),
       runQuery(
         `SELECT conversion_action.name, conversion_action.category, conversion_action.status,
@@ -53,6 +56,7 @@ export async function GET() {
                 conversion_action.counting_type,
                 conversion_action.attribution_model_settings.attribution_model
          FROM conversion_action`,
+        credentials,
       ),
     ])
 

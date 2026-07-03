@@ -53,8 +53,8 @@ export function ShopifyDashboard() {
       fetch("/api/shopify/products").then((r) => r.json()),
     ])
       .then(([ordersData, productsData]) => {
-        if (!ordersData.error) setOrders(ordersData)
-        if (!productsData.error) setProducts(productsData)
+        if (!ordersData.error) setOrders(Array.isArray(ordersData) ? ordersData : ordersData.orders ?? [])
+        if (!productsData.error) setProducts(Array.isArray(productsData) ? productsData : productsData.products ?? [])
       })
       .finally(() => setLoading(false))
   }, [])

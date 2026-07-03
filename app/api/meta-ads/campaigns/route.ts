@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server"
-import { isConfigured, graph, accountId, findAction, num, translateStatus, PURCHASE, MetaError } from "@/lib/meta-ads"
+import { graph, accountId, findAction, num, translateStatus, PURCHASE, MetaError } from "@/lib/meta-ads"
+import { getMetaRequestCredentials } from "@/lib/integrations/meta-ads-request"
 
 /** Campanhas com insights dos últimos 30 dias. */
 export async function GET() {
-  if (!isConfigured()) return NextResponse.json({ configured: false })
+  const credentials = await getMetaRequestCredentials()
+
+  if (!credentials) return NextResponse.json({ configured: false })
 
   try {
-    const data = await graph(`${accountId()}/campaigns`, {
+    const data = await graph(`${accountId(credentials)}/campaigns`, {
       fields:
         "name,status,objective,daily_budget,insights.date_preset(last_30d){spend,impressions,reach,clicks,ctr,actions,action_values}",
       limit: "100",
-    })
+    }, credentials)
 
     const campaigns = (data.data ?? []).map((c: any) => {
       const ins = c.insights?.data?.[0] ?? {}

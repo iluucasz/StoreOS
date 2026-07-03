@@ -1,11 +1,11 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Check, Info, AlertCircle, ExternalLink, RefreshCw, Loader2 } from "lucide-react"
+import { AlertCircle, Check, ExternalLink, Info, Loader2, RefreshCw } from "lucide-react"
+import { MetaIcon } from "@/components/brand-icons"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { MetaIcon } from "@/components/brand-icons"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { MetaStatus } from "../page"
 
 interface FacebookIntegrationProps {
@@ -13,19 +13,12 @@ interface FacebookIntegrationProps {
   onRecheck: () => void
 }
 
-const ENV_VARS: { name: string; description: string }[] = [
-  { name: "META_APP_ID", description: "App ID do app no Meta for Developers" },
-  { name: "META_APP_SECRET", description: "App Secret do app" },
-  { name: "META_ACCESS_TOKEN", description: "Gerado pelo botão abaixo (token de longa duração)" },
-  { name: "META_AD_ACCOUNT_ID", description: "ID da conta de anúncios (act_... ou só os dígitos)" },
-]
-
 export function FacebookIntegration({ status, onRecheck }: FacebookIntegrationProps) {
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-2">
               <MetaIcon className="h-5 w-5 text-[#0866FF]" />
               Status da Integração
@@ -35,7 +28,7 @@ export function FacebookIntegration({ status, onRecheck }: FacebookIntegrationPr
               Verificar
             </Button>
           </CardTitle>
-          <CardDescription>Conexão com a Meta Marketing API (Facebook + Instagram Ads)</CardDescription>
+          <CardDescription>Conexão da conta deste usuário com a Meta Marketing API.</CardDescription>
         </CardHeader>
         <CardContent>
           {status.loading ? (
@@ -43,28 +36,26 @@ export function FacebookIntegration({ status, onRecheck }: FacebookIntegrationPr
               <Loader2 className="h-4 w-4 animate-spin" /> Verificando conexão...
             </p>
           ) : status.connected ? (
-            <Alert className="border-green-200 bg-green-50">
-              <Check className="h-4 w-4 text-green-600" />
-              <AlertTitle className="text-green-700">Conectado</AlertTitle>
-              <AlertDescription className="text-green-700">
+            <Alert className="border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20">
+              <Check className="h-4 w-4 text-emerald-600" />
+              <AlertTitle className="text-emerald-700 dark:text-emerald-400">Conectado</AlertTitle>
+              <AlertDescription className="text-emerald-700 dark:text-emerald-400">
                 {status.account?.name
-                  ? `Conta "${status.account.name}" conectada e sincronizando.`
+                  ? `Conta "${status.account.name}" conectada.`
                   : "Sua conta de anúncios da Meta está conectada."}
               </AlertDescription>
             </Alert>
           ) : status.configured ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Credenciais presentes, mas a API retornou erro</AlertTitle>
-              <AlertDescription>{status.error || "Verifique o token e o Ad Account ID."}</AlertDescription>
+              <AlertTitle>Credenciais salvas, mas a API retornou erro</AlertTitle>
+              <AlertDescription>{status.error || "Verifique o acesso da conta à conta de anúncios."}</AlertDescription>
             </Alert>
           ) : (
             <Alert>
               <Info className="h-4 w-4" />
-              <AlertTitle>Não configurado</AlertTitle>
-              <AlertDescription>
-                Preencha as variáveis abaixo no <code>.env.local</code> e reinicie o servidor.
-              </AlertDescription>
+              <AlertTitle>Não conectado</AlertTitle>
+              <AlertDescription>Faça login com a conta que administra a conta de anúncios da Meta.</AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -72,48 +63,20 @@ export function FacebookIntegration({ status, onRecheck }: FacebookIntegrationPr
 
       <Card>
         <CardHeader>
-          <CardTitle>Credenciais (.env.local)</CardTitle>
+          <CardTitle>Conectar Meta Ads</CardTitle>
           <CardDescription>
-            Consulte <code>docs/meta-ads-setup.md</code> para o passo a passo completo.
+            O access token será salvo criptografado para o usuário logado. Se houver várias contas, o app usa a primeira
+            conta acessível por enquanto.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {ENV_VARS.map((v) => (
-            <div
-              key={v.name}
-              className="flex flex-col gap-1 border-b pb-2 last:border-0 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <code className="font-mono text-sm text-foreground">{v.name}</code>
-              <span className="text-xs text-muted-foreground">{v.description}</span>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Gerar Token de Acesso</CardTitle>
-          <CardDescription>
-            Depois de preencher o App ID e o App Secret, gere o token de longa duração via Login do Facebook.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertDescription>
-              Faça login com a conta que administra a conta de anúncios. O token (e a lista de contas
-              <code> act_...</code>) aparecerá na tela — copie para o <code>.env.local</code> e reinicie o servidor.
-            </AlertDescription>
-          </Alert>
-          <Button asChild>
-            <a href="/api/meta-ads/auth" target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Conectar com a Meta e gerar token
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Button asChild className="gap-2">
+            <a href="/api/meta-ads/auth">
+              <ExternalLink className="h-4 w-4" />
+              Entrar com Meta
             </a>
           </Button>
-          <div className="pt-2">
-            <Badge variant="outline">Permissões: ads_read, business_management</Badge>
-          </div>
+          <Badge variant="outline">Permissão: ads_read</Badge>
         </CardContent>
       </Card>
     </div>

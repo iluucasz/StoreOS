@@ -1,249 +1,224 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Edit, Trash2, Plus, Search, Facebook, Download } from "lucide-react"
-import { downloadCSV } from "@/lib/export-csv"
-import { ProductDialog } from "./product-dialog"
-import { DeleteProductDialog } from "./delete-product-dialog"
-import { toast } from "@/components/ui/use-toast"
-import { useProducts, getProductStock } from "@/contexts/products-context"
-import { formatCurrency } from "@/lib/utils"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { BarChart3, Download, PackageSearch, Search, ShoppingBag } from "lucide-react"
+import { EmptyState, ErrorState, IntegrationRequired, LoadingState } from "@/components/feedback-state"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { downloadCSV } from "@/lib/export-csv"
+import { formatCurrency } from "@/lib/utils"
+
+type ShopifyProduct = {
+  id: string
+  name: string
+  sku: string
+  category: string
+  stock: number
+  unitCost: number
+  price: number
+}
+
+type InventoryResponse = {
+  configured?: boolean
+  items?: ShopifyProduct[]
+  error?: string
+}
+
+async function readJson(response: Response): Promise<InventoryResponse> {
+  try {
+    return await response.json()
+  } catch {
+    return { error: "Resposta inesperada do servidor." }
+  }
+}
 
 export function ProductsTable() {
-  const { products, addProduct, updateProduct, deleteProduct } = useProducts()
+  const [products, setProducts] = useState<ShopifyProduct[]>([])
+  const [loading, setLoading] = useState(true)
+  const [configured, setConfigured] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [currentProduct, setCurrentProduct] = useState<any | null>(null)
 
-  // Mock data for marketing campaigns
-  const mockCampaigns = [
-    {
-      id: "1",
-      name: "Campanha de Verão",
-      spend: 1200,
-      conversions: 45,
-      cpa: 26.67,
-      roas: 3.2,
-    },
-    {
-      id: "2",
-      name: "Promoção Especial",
-      spend: 800,
-      conversions: 32,
-      cpa: 25.0,
-      roas: 3.5,
-    },
-    {
-      id: "3",
-      name: "Lançamento Coleção",
-      spend: 1500,
-      conversions: 60,
-      cpa: 25.0,
-      roas: 3.8,
-    },
-  ]
+  const loadProducts = useCallback(async () => {
+    setLoading(true)
+    setError(null)
 
-  const filteredProducts = products.filter((product) => product.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    try {
+      const response = await fetch("/api/shopify/inventory", { cache: "no-store" })
+      const json = await readJson(response)
 
-  const handleAddProduct = () => {
-    setCurrentProduct(null)
-    setIsDialogOpen(true)
-  }
+      if (json.configured === false) {
+        setConfigured(false)
+        setProducts([])
+        return
+      }
 
-  const handleEditProduct = (product: any) => {
-    setCurrentProduct(product)
-    setIsDialogOpen(true)
-  }
+      setConfigured(true)
 
-  const handleDeleteClick = (product: any) => {
-    setCurrentProduct(product)
-    setIsDeleteDialogOpen(true)
-  }
+      if (!response.ok || json.error) {
+        setError(json.error || "Não foi possível carregar produtos da Shopify.")
+        setProducts([])
+        return
+      }
 
-  const handleSaveProduct = (product: any) => {
-    if (product.id) {
-      // Editar produto existente
-      updateProduct(product)
-      toast({
-        title: "Produto atualizado",
-        description: `${product.name} foi atualizado com sucesso.`,
-      })
-    } else {
-      // Adicionar novo produto
-      addProduct(product)
-      toast({
-        title: "Produto adicionado",
-        description: `${product.name} foi adicionado com sucesso.`,
-      })
+      setProducts(json.items ?? [])
+    } catch {
+      setError("Não foi possível conectar ao servidor agora.")
+      setProducts([])
+    } finally {
+      setLoading(false)
     }
-    setIsDialogOpen(false)
-  }
+  }, [])
 
-  const handleDeleteProduct = () => {
-    if (currentProduct) {
-      deleteProduct(currentProduct.id)
-      toast({
-        title: "Produto excluído",
-        description: `${currentProduct.name} foi excluído com sucesso.`,
-        variant: "destructive",
-      })
-      setIsDeleteDialogOpen(false)
-    }
-  }
+  useEffect(() => {
+    void loadProducts()
+  }, [loadProducts])
+
+  const filtered = useMemo(
+    () =>
+      products.filter(
+        (product) =>
+          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.sku.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    [products, searchTerm],
+  )
+
+  const marginOf = (product: ShopifyProduct) =>
+    product.unitCost > 0 && product.price > 0 ? Math.round((1 - product.unitCost / product.price) * 100) : null
 
   return (
-    <>
-      <Card>
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle>Produtos Cadastrados</CardTitle>
-          <div className="flex gap-2 flex-wrap">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => downloadCSV("produtos.csv", filteredProducts.map(p => ({
-                "Nome": p.name,
-                "Custo (R$)": p.cost,
-                "Preço (R$)": p.price,
-                "Margem (%)": p.margin,
-                "Estoque": getProductStock(p),
-                "Variantes": p.variants?.length ?? 0,
-              })))}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Exportar
-            </Button>
-            <Button size="sm" variant="outline" asChild>
-              <Link href="/marketing">
-                <Facebook className="mr-2 h-4 w-4" />
-                Campanhas
-              </Link>
-            </Button>
-            <Button size="sm" onClick={handleAddProduct}>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Produto
-            </Button>
+    <Card>
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ShoppingBag className="h-5 w-5 text-primary" />
+          Catálogo Shopify
+        </CardTitle>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={filtered.length === 0}
+            onClick={() =>
+              downloadCSV(
+                "produtos.csv",
+                filtered.map((product) => ({
+                  Nome: product.name,
+                  SKU: product.sku,
+                  Categoria: product.category,
+                  "Custo (R$)": product.unitCost,
+                  "Preço (R$)": product.price,
+                  "Margem (%)": marginOf(product) ?? "",
+                  Estoque: product.stock,
+                })),
+              )
+            }
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Exportar
+          </Button>
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/marketing">
+              <BarChart3 className="mr-2 h-4 w-4" />
+              Campanhas
+            </Link>
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-4 flex items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar produtos..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar produtos..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
+        </div>
 
-          <div className="rounded-md border overflow-x-auto">
+        {loading ? (
+          <LoadingState label="Carregando produtos da Shopify..." />
+        ) : !configured ? (
+          <IntegrationRequired
+            service="Shopify"
+            description="Conecte a loja em Integrações para listar produtos, estoque, custo e preço."
+          />
+        ) : error ? (
+          <ErrorState description={error} onAction={() => void loadProducts()} />
+        ) : products.length === 0 ? (
+          <EmptyState
+            icon={PackageSearch}
+            title="Nenhum produto sincronizado"
+            description="Quando a Shopify retornar produtos, eles aparecem aqui com estoque, custo, preço e margem."
+          />
+        ) : (
+          <div className="overflow-x-auto rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead className="text-right hidden sm:table-cell">Custo</TableHead>
+                  <TableHead className="hidden md:table-cell">SKU</TableHead>
+                  <TableHead className="hidden sm:table-cell text-right">Custo</TableHead>
                   <TableHead className="text-right">Preço</TableHead>
-                  <TableHead className="text-right hidden sm:table-cell">Margem</TableHead>
+                  <TableHead className="hidden sm:table-cell text-right">Margem</TableHead>
                   <TableHead className="text-right">Estoque</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.length > 0 ? (
-                  filteredProducts.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell className="text-right hidden sm:table-cell">{formatCurrency(product.cost)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(product.price)}</TableCell>
-                      <TableCell className="text-right hidden sm:table-cell">{product.margin}%</TableCell>
-                      <TableCell className="text-right">
-                        <div>{getProductStock(product)}</div>
-                        {product.variants?.length > 0 && (
-                          <div className="text-xs text-muted-foreground">{product.variants.length} var.</div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditProduct(product)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(product)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                {filtered.length > 0 ? (
+                  filtered.map((product) => {
+                    const margin = marginOf(product)
+                    return (
+                      <TableRow key={product.id}>
+                        <TableCell className="font-medium">
+                          {product.name}
+                          <div className="text-xs text-muted-foreground sm:hidden">{product.category}</div>
+                        </TableCell>
+                        <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
+                          {product.sku}
+                        </TableCell>
+                        <TableCell className="hidden text-right sm:table-cell">
+                          {product.unitCost > 0 ? formatCurrency(product.unitCost) : "-"}
+                        </TableCell>
+                        <TableCell className="text-right">{formatCurrency(product.price)}</TableCell>
+                        <TableCell className="hidden text-right sm:table-cell">{margin !== null ? `${margin}%` : "-"}</TableCell>
+                        <TableCell className="text-right">
+                          <span
+                            className={
+                              product.stock <= 0
+                                ? "font-semibold text-red-500"
+                                : product.stock <= 5
+                                  ? "font-medium text-amber-600"
+                                  : ""
+                            }
+                          >
+                            {product.stock}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-4">
-                      Nenhum produto encontrado
+                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                      Nenhum produto encontrado para essa busca.
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
           </div>
-        </CardContent>
-      </Card>
+        )}
 
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Métricas de Marketing por Produto</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Campanha</TableHead>
-                  <TableHead className="text-right">Gasto</TableHead>
-                  <TableHead className="text-right hidden sm:table-cell">Conversões</TableHead>
-                  <TableHead className="text-right hidden sm:table-cell">CPA</TableHead>
-                  <TableHead className="text-right">ROAS</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockCampaigns.map((campaign) => (
-                  <TableRow key={campaign.id}>
-                    <TableCell className="font-medium">{campaign.name}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(campaign.spend)}</TableCell>
-                    <TableCell className="text-right hidden sm:table-cell">{campaign.conversions}</TableCell>
-                    <TableCell className="text-right hidden sm:table-cell">{formatCurrency(campaign.cpa)}</TableCell>
-                    <TableCell className="text-right">{campaign.roas.toFixed(2)}x</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="mt-4 text-center">
-            <Button variant="outline" asChild>
-              <Link href="/marketing">Ver todas as campanhas</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <ProductDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        product={currentProduct}
-        onSave={handleSaveProduct}
-      />
-
-      <DeleteProductDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-        onDelete={handleDeleteProduct}
-        productName={currentProduct?.name || ""}
-      />
-    </>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Catálogo sincronizado da Shopify. O gerenciamento continua no painel da loja.
+        </p>
+      </CardContent>
+    </Card>
   )
 }

@@ -1,50 +1,63 @@
-/**
- * Cliente mínimo da Meta Marketing API (Graph API) para Facebook + Instagram Ads.
- * Mesmo padrão das outras integrações: credenciais via `.env.local`.
- *
- *   META_APP_ID         — App ID (Meta for Developers) — usado no fluxo OAuth
- *   META_APP_SECRET     — App Secret — usado para gerar o token de longa duração
- *   META_ACCESS_TOKEN   — token de acesso (longa duração ou System User) com ads_read
- *   META_AD_ACCOUNT_ID  — ID da conta de anúncios (act_123... ou só os dígitos)
- *   META_API_VERSION    — (opcional) versão da Graph API, padrão v21.0
- */
+import { getIntegrationSecrets, getUserIntegration } from "@/lib/integrations/store"
 
 const GRAPH = "https://graph.facebook.com"
 const API_VERSION = process.env.META_API_VERSION || "v21.0"
 
-/** Escopo OAuth para leitura de anúncios. */
 export const META_SCOPE = "ads_read"
+
+export type MetaCredentials = {
+  accessToken: string
+  adAccountId: string
+}
 
 export class MetaError extends Error {}
 
 export function appId() {
   return process.env.META_APP_ID
 }
+
 export function appSecret() {
   return process.env.META_APP_SECRET
 }
+
 export function apiVersion() {
   return API_VERSION
 }
 
-export function isConfigured(): boolean {
-  return Boolean(process.env.META_ACCESS_TOKEN && process.env.META_AD_ACCOUNT_ID)
-}
-
-/** Garante o prefixo act_ exigido pela API. */
-export function accountId(): string {
-  const raw = (process.env.META_AD_ACCOUNT_ID || "").trim()
+function normalizeAccountId(value: string | null | undefined): string {
+  const raw = (value || "").trim()
   if (!raw) return ""
   return raw.startsWith("act_") ? raw : `act_${raw.replace(/\D/g, "")}`
 }
 
-/** GET genérico na Graph API (lança MetaError em caso de falha). */
-export async function graph(path: string, params: Record<string, string> = {}): Promise<any> {
-  if (!process.env.META_ACCESS_TOKEN) {
+export function isConfigured(credentials?: MetaCredentials | null): boolean {
+  return Boolean(credentials?.accessToken && credentials.adAccountId)
+}
+
+export async function getMetaCredentials(userId: string): Promise<MetaCredentials | null> {
+  const integration = await getUserIntegration(userId, "meta_ads")
+  const secrets = await getIntegrationSecrets(userId, "meta_ads")
+  const adAccountId = normalizeAccountId(integration?.providerAccountId)
+
+  if (secrets?.accessToken && adAccountId) return { accessToken: secrets.accessToken, adAccountId }
+  return null
+}
+
+export function accountId(credentials?: MetaCredentials | null): string {
+  return normalizeAccountId(credentials?.adAccountId)
+}
+
+export async function graph(
+  path: string,
+  params: Record<string, string> = {},
+  credentials?: MetaCredentials | null,
+): Promise<any> {
+  if (!credentials?.accessToken) {
     throw new MetaError("Credenciais da Meta não configuradas")
   }
+
   const url = new URL(`${GRAPH}/${API_VERSION}/${path}`)
-  url.searchParams.set("access_token", process.env.META_ACCESS_TOKEN)
+  url.searchParams.set("access_token", credentials.accessToken)
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v)
 
   const res = await fetch(url.toString(), { cache: "no-store" })
@@ -55,7 +68,6 @@ export async function graph(path: string, params: Record<string, string> = {}): 
   return data
 }
 
-/** time_range JSON (since/until) para os últimos `days` dias, terminando ontem. */
 export function timeRange(days: number, offsetDays = 0): string {
   const fmt = (d: Date) => d.toISOString().slice(0, 10)
   const until = new Date()
@@ -64,10 +76,6 @@ export function timeRange(days: number, offsetDays = 0): string {
   since.setUTCDate(since.getUTCDate() - (days - 1))
   return JSON.stringify({ since: fmt(since), until: fmt(until) })
 }
-
-// ─── Helpers de "actions" ────────────────────────────────────────────────────
-// A Meta devolve tipos sobrepostos (purchase, omni_purchase, offsite_conversion...).
-// Para não contar em dobro, pegamos o PRIMEIRO tipo presente na ordem de prioridade.
 
 type MetaAction = { action_type: string; value: string }
 
@@ -90,7 +98,6 @@ export function num(v: unknown): number {
   return Number(v ?? 0)
 }
 
-/** Formata "YYYY-MM-DD" (date_start do insights) para "DD/MM". */
 export function ddmm(isoDate: string): string {
   if (!isoDate || isoDate.length < 10) return isoDate
   return `${isoDate.slice(8, 10)}/${isoDate.slice(5, 7)}`

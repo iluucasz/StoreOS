@@ -1,15 +1,33 @@
 import { NextResponse } from "next/server"
-
-const SHOP = process.env.SHOPIFY_STORE_DOMAIN!
-const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!
-const BASE = `https://${SHOP}/admin/api/2025-01`
+import { getShopifyRequestCredentials } from "@/lib/integrations/shopify-request"
 
 export async function GET() {
-  const res = await fetch(
-    `${BASE}/products.json?limit=50&fields=id,title,status,variants`,
-    { headers: { "X-Shopify-Access-Token": TOKEN }, next: { revalidate: 60 } }
-  )
-  if (!res.ok) return NextResponse.json({ error: "Shopify error", status: res.status }, { status: 502 })
-  const data = await res.json()
-  return NextResponse.json(data.products)
+  const credentials = await getShopifyRequestCredentials()
+
+  if (!credentials) {
+    return NextResponse.json({ configured: false, products: [] })
+  }
+
+  try {
+    const response = await fetch(`https://${credentials.shop}/admin/api/2025-01/products.json?limit=50&fields=id,title,status,variants`, {
+      headers: { "X-Shopify-Access-Token": credentials.accessToken },
+      next: { revalidate: 60 },
+    })
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { configured: true, products: [], error: `Shopify retornou erro ${response.status} ao buscar produtos.` },
+        { status: 502 },
+      )
+    }
+
+    const data = await response.json()
+    return NextResponse.json({ configured: true, products: data.products || [] })
+  } catch (error) {
+    console.error("Shopify products error:", error)
+    return NextResponse.json(
+      { configured: true, products: [], error: "Não foi possível buscar produtos da Shopify." },
+      { status: 502 },
+    )
+  }
 }

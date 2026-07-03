@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { isConfigured, tiktok, advertiserId, num, ttDate, dateRange, TikTokError } from "@/lib/tiktok-ads"
+import { tiktok, advertiserId, num, ttDate, dateRange, TikTokError } from "@/lib/tiktok-ads"
+import { getTikTokRequestCredentials } from "@/lib/integrations/tiktok-ads-request"
 
 function pct(curr: number, prev: number): number {
   if (!prev) return 0
@@ -8,7 +9,9 @@ function pct(curr: number, prev: number): number {
 
 /** Visão geral do anunciante: métricas e série diária (14 dias). */
 export async function GET() {
-  if (!isConfigured()) return NextResponse.json({ configured: false })
+  const credentials = await getTikTokRequestCredentials()
+
+  if (!credentials) return NextResponse.json({ configured: false })
 
   const cur = dateRange(14, 0)
   const prv = dateRange(14, 14)
@@ -16,15 +19,15 @@ export async function GET() {
 
   try {
     const base = {
-      advertiser_id: advertiserId(),
+      advertiser_id: advertiserId(credentials),
       report_type: "BASIC",
       data_level: "AUCTION_ADVERTISER",
       dimensions: ["stat_time_day"],
       page_size: 30,
     }
     const [daily, prev] = await Promise.all([
-      tiktok("/report/integrated/get/", { ...base, metrics, start_date: cur.start, end_date: cur.end }),
-      tiktok("/report/integrated/get/", { ...base, metrics: ["spend", "conversion"], start_date: prv.start, end_date: prv.end }),
+      tiktok("/report/integrated/get/", { ...base, metrics, start_date: cur.start, end_date: cur.end }, credentials),
+      tiktok("/report/integrated/get/", { ...base, metrics: ["spend", "conversion"], start_date: prv.start, end_date: prv.end }, credentials),
     ])
 
     const list: any[] = daily.list ?? []

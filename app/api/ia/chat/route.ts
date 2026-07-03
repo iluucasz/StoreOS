@@ -3,6 +3,7 @@ import Groq from "groq-sdk"
 import { getCurrentUser } from "@/lib/auth"
 import { getHistory, initSchema, saveMessage } from "@/lib/db"
 import { fetchStoreContext } from "@/lib/ia/store-context"
+import { fetchMarketingContext } from "@/lib/ia/marketing-context"
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! })
 const OSIA_MODEL = "llama-3.1-8b-instant"
@@ -46,9 +47,10 @@ export async function POST(request: NextRequest) {
 
     await initSchema()
 
-    const [history, storeContext] = await Promise.all([
+    const [history, storeContext, marketingContext] = await Promise.all([
       getHistory(sessionId, OSIA_HISTORY_LIMIT),
-      fetchStoreContext(),
+      fetchStoreContext(user.id),
+      fetchMarketingContext(user.id),
     ])
 
     await saveMessage(sessionId, user.id, "user", message)
@@ -62,6 +64,8 @@ Seu papel e informar, explicar, analisar dados da loja e orientar o lojista sobr
 Voce recebe abaixo apenas os dados reais disponiveis no momento. Use somente esses dados e deixe claro quando algo nao estiver disponivel.
 
 ${storeContext}
+
+${marketingContext}
 
 ${STOREOS_ROUTE_MAP}
 
@@ -92,7 +96,8 @@ ANÁLISE COMERCIAL:
 - Separe a resposta em: **Diagnóstico**, **Possíveis causas** e **Próximo passo**.
 - Dê no máximo 3 causas prováveis, sempre conectadas a um dado real. Se for hipótese, diga que é uma hipótese.
 - Dê 3 a 5 ações práticas e priorizadas, como revisar vitrine, oferta, preço, estoque, frete, checkout, criativos, campanha, remarketing ou CRM.
-- Se faltarem dados de tráfego, conversão, anúncios ou origem dos clientes, diga claramente que esses dados não estão disponíveis no contexto e indique [Analytics](/marketing/google/analytics), [Meta Ads](/marketing/facebook), [Google Ads](/marketing/google/ads) ou [Relatórios](/reports).
+- Você TEM acesso aos DADOS DE MARKETING, TRÁFEGO E PROMOÇÕES acima. Use-os para VERIFICAR cada hipótese com números reais, em vez de só mandar o usuário ir conferir. Ao citar "falta de tráfego", confirme com as sessões/usuários do Analytics; ao citar "campanhas"/"anúncios", confirme com o gasto, ROAS e número de campanhas ativas da Meta; ao citar "promoções", confirme com as promoções ativas. Conclua a causa mais provável apoiada nesses números (ex.: "provavelmente é falta de tráfego, pois você teve só X sessões e nenhuma campanha ativa").
+- Só diga que um dado "não está disponível" quando a fonte aparecer como "não conectado" acima. Nesse caso, indique a tela para conectar: [Analytics](/marketing/google/analytics), [Meta Ads](/marketing/facebook) ou [Relatórios](/reports).
 - Você não tem navegação web em tempo real neste chat. Não diga que pesquisou na web. Pode usar boas práticas gerais de e-commerce como complemento, deixando claro que são boas práticas gerais.
 
 COMO RESPONDER:

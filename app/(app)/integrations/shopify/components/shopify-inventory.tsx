@@ -43,7 +43,8 @@ export function ShopifyInventory() {
       .then((r) => r.json())
       .then((data) => {
         if (data.error) throw new Error(data.error)
-        setProducts(data.filter((p: ShopifyProduct) => p.status === "active"))
+        const rows: ShopifyProduct[] = Array.isArray(data) ? data : data.products ?? []
+        setProducts(rows.filter((p) => p.status === "active"))
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))

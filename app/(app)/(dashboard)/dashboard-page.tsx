@@ -25,7 +25,10 @@ export function DashboardPage() {
   useEffect(() => {
     fetch("/api/shopify/orders")
       .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setOrders(data) })
+      .then((data) => {
+        const rows = Array.isArray(data) ? data : data.orders ?? []
+        setOrders(rows)
+      })
       .finally(() => setOrdersLoading(false))
   }, [])
 

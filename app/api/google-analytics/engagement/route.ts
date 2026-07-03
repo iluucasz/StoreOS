@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { isConfigured, runReport, parseRows, num, gaDate, GoogleAnalyticsError } from "@/lib/google-analytics"
+import { runReport, parseRows, num, gaDate, GoogleAnalyticsError } from "@/lib/google-analytics"
+import { getGoogleAnalyticsRequestCredentials } from "@/lib/integrations/google-analytics-request"
 
 function mmss(seconds: number): string {
   const s = Math.round(seconds)
@@ -10,7 +11,9 @@ function mmss(seconds: number): string {
 
 /** Engajamento: série diária, páginas mais vistas e dispositivos (7/30 dias). */
 export async function GET() {
-  if (!isConfigured()) {
+  const credentials = await getGoogleAnalyticsRequestCredentials()
+
+  if (!credentials) {
     return NextResponse.json({ configured: false })
   }
 
@@ -21,20 +24,20 @@ export async function GET() {
         dimensions: [{ name: "date" }],
         metrics: [{ name: "screenPageViews" }, { name: "averageSessionDuration" }, { name: "bounceRate" }],
         orderBys: [{ dimension: { dimensionName: "date" } }],
-      }),
+      }, credentials),
       runReport({
         dateRanges: [{ startDate: "30daysAgo", endDate: "yesterday" }],
         dimensions: [{ name: "pagePath" }],
         metrics: [{ name: "screenPageViews" }, { name: "averageSessionDuration" }, { name: "bounceRate" }],
         orderBys: [{ desc: true, metric: { metricName: "screenPageViews" } }],
         limit: 10,
-      }),
+      }, credentials),
       runReport({
         dateRanges: [{ startDate: "30daysAgo", endDate: "yesterday" }],
         dimensions: [{ name: "deviceCategory" }],
         metrics: [{ name: "sessions" }, { name: "averageSessionDuration" }, { name: "bounceRate" }],
         orderBys: [{ desc: true, metric: { metricName: "sessions" } }],
-      }),
+      }, credentials),
     ])
 
     const engagementData = parseRows(daily).map((r) => ({

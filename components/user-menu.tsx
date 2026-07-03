@@ -1,6 +1,9 @@
 "use client"
 
+import { LogOut, Settings as SettingsIcon, UserCircle } from "lucide-react"
+import { logout } from "@/app/actions/auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,8 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { LogOut, Settings as SettingsIcon } from "lucide-react"
-import { logout } from "@/app/actions/auth"
 
 export type HeaderUser = {
   id: string
@@ -24,41 +25,58 @@ function initials(name: string): string {
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
+    .map((part) => part[0]?.toUpperCase() ?? "")
     .join("")
+}
+
+function openSettings() {
+  document.getElementById("settings-trigger")?.click()
 }
 
 export function UserMenu({ user }: { user: HeaderUser }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <Avatar className="h-8 w-8">
-          {user.image && <AvatarImage src={user.image} alt={user.name} />}
-          <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-            {initials(user.name) || "U"}
-          </AvatarFallback>
-        </Avatar>
-        <span className="hidden lg:inline text-sm font-medium max-w-[140px] truncate">{user.name}</span>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-9 gap-2 rounded-full px-1.5 pr-2.5">
+          <Avatar className="h-7 w-7">
+            {user.image && <AvatarImage src={user.image} alt={user.name} />}
+            <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
+              {initials(user.name) || "U"}
+            </AvatarFallback>
+          </Avatar>
+          <span className="hidden max-w-[150px] truncate text-sm font-medium lg:inline">{user.name}</span>
+        </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="flex flex-col gap-0.5">
-          <span className="text-sm font-medium truncate">{user.name}</span>
-          <span className="text-xs text-muted-foreground font-normal truncate">{user.email}</span>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel className="flex items-center gap-3">
+          <Avatar className="h-10 w-10">
+            {user.image && <AvatarImage src={user.image} alt={user.name} />}
+            <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground">
+              {initials(user.name) || "U"}
+            </AvatarFallback>
+          </Avatar>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold">{user.name}</span>
+            <span className="block truncate text-xs font-normal text-muted-foreground">{user.email}</span>
+          </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="cursor-pointer"
-          onSelect={() => document.getElementById("settings-trigger")?.click()}
-        >
-          <SettingsIcon className="mr-2 h-4 w-4" />
+        <DropdownMenuItem className="cursor-pointer gap-2" onSelect={openSettings}>
+          <UserCircle className="h-4 w-4" />
+          Perfil
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer gap-2" onSelect={openSettings}>
+          <SettingsIcon className="h-4 w-4" />
           Configurações
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          className="text-red-600 focus:text-red-600 cursor-pointer"
-          onSelect={() => { void logout() }}
+          className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+          onSelect={() => {
+            void logout()
+          }}
         >
-          <LogOut className="mr-2 h-4 w-4" />
+          <LogOut className="h-4 w-4" />
           Sair
         </DropdownMenuItem>
       </DropdownMenuContent>

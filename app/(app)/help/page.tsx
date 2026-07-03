@@ -85,12 +85,12 @@ const sections = [
   {
     id: "integrations",
     icon: Zap,
-    label: "Integracoes",
+    label: "Integrações",
     color: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
     faqs: [
-      { q: "Como conectar o Shopify?", a: "Vá em Integracoes -> Shopify -> Configuracao. Informe a URL da loja e o Access Token gerado no painel Shopify em Apps -> Desenvolver apps. Clique em Testar Conexao para validar." },
-      { q: "Como configurar o WhatsApp Business?", a: "Em Integracoes -> WhatsApp -> Configuracao, informe seu numero no formato internacional (+5511...) e a API Key da Meta Business Suite. Ative as automacoes desejadas e salve." },
-      { q: "Os dados sao sincronizados em tempo real?", a: "Na versao atual os dados sao demonstrativos (mock). A sincronizacao em tempo real requer conexao real das credenciais de API." },
+      { q: "Como conectar o Shopify?", a: "Vá em Integrações -> Shopify -> Configuração. Informe o domínio da loja e clique em Entrar com Shopify. O token é salvo de forma criptografada para o usuário conectado." },
+      { q: "Como configurar o WhatsApp Business?", a: "Em Integrações -> WhatsApp -> Configuração, informe seu número no formato internacional (+5511...) e a API Key da Meta Business Suite. Ative as automações desejadas e salve." },
+      { q: "Os dados são sincronizados em tempo real?", a: "As integrações conectadas consultam os dados reais disponíveis nas APIs. Quando uma integração não está conectada ou falha, a tela mostra um estado de conexão necessário ou erro com ação para tentar novamente." },
     ],
   },
   {

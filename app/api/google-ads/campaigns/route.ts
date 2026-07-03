@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server"
-import { isConfigured, runQuery, fromMicros, num, translateStatus, GoogleAdsError } from "@/lib/google-ads"
+import { runQuery, fromMicros, num, translateStatus, GoogleAdsError } from "@/lib/google-ads"
+import { getGoogleAdsRequestCredentials } from "@/lib/integrations/google-ads-request"
 
 /** Lista de campanhas com métricas dos últimos 30 dias. */
 export async function GET() {
-  if (!isConfigured()) {
+  const credentials = await getGoogleAdsRequestCredentials()
+
+  if (!credentials) {
     return NextResponse.json({ configured: false })
   }
 
@@ -15,6 +18,7 @@ export async function GET() {
        FROM campaign
        WHERE segments.date DURING LAST_30_DAYS
        ORDER BY metrics.cost_micros DESC`,
+      credentials,
     )
 
     const campaigns = rows.map((r) => {

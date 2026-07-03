@@ -1,26 +1,43 @@
 "use client"
 
+import type { ElementType } from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  Calculator, TrendingUp, Package, BarChart2, HelpCircle, Settings,
-  Activity, DollarSign, Sparkles, Menu, ShoppingCart, Users,
-  ShoppingBag, MessageCircle, RefreshCw, LayoutGrid, Warehouse, Target,
-  ChevronLeft, ChevronRight, Truck, Tag,
+  Activity,
+  BarChart2,
+  Calculator,
+  ChevronLeft,
+  ChevronRight,
+  DollarSign,
+  HelpCircle,
+  LayoutGrid,
+  Menu,
+  MessageCircle,
+  Package,
+  RefreshCw,
+  Settings,
+  ShoppingBag,
+  ShoppingCart,
+  Sparkles,
+  Tag,
+  Target,
+  TrendingUp,
+  Truck,
+  Users,
+  Warehouse,
 } from "lucide-react"
 import { MetaIcon, TikTokIcon } from "@/components/brand-icons"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useSidebar } from "@/contexts/sidebar-context"
+import { cn } from "@/lib/utils"
 
-// ─── Nav structure ────────────────────────────────────────────────────────────
-
-type NavItem = { name: string; href: string; icon: React.ElementType }
-type NavGroup = { key: string; label: string; icon: React.ElementType; items: NavItem[] }
+type NavItem = { name: string; href: string; icon: ElementType }
+type NavGroup = { key: string; label: string; icon: ElementType; items: NavItem[] }
 
 const navGroups: NavGroup[] = [
   {
@@ -84,118 +101,112 @@ const bottomNavigation = [
   { name: "Configurações", href: "#", icon: Settings, isSettings: true },
 ]
 
-function activeGroups(pathname: string) {
-  return navGroups
-    .filter(g => g.items.some(i => pathname === i.href || (i.href !== "/" && pathname.startsWith(i.href + "/"))))
-    .map(g => g.key)
+function isActiveHref(pathname: string, href: string) {
+  return pathname === href || (href !== "/" && pathname.startsWith(`${href}/`))
 }
 
-// ─── Nav link ─────────────────────────────────────────────────────────────────
-
 function NavLink({ item, pathname, onClick }: { item: NavItem; pathname: string; onClick?: () => void }) {
-  const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"))
+  const active = isActiveHref(pathname, item.href)
+
   return (
     <Link
       href={item.href}
       onClick={onClick}
       className={cn(
-        "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
+        "flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
         active
-          ? "bg-secondary text-secondary-foreground"
-          : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground",
+          ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
       )}
     >
-      <item.icon className="h-4 w-4 mr-3 shrink-0" />
+      <item.icon className="mr-3 h-4 w-4 shrink-0" />
       <span>{item.name}</span>
     </Link>
   )
 }
 
-// ─── Collapsed icon link ──────────────────────────────────────────────────────
-
 function IconLink({ item, pathname }: { item: NavItem; pathname: string }) {
-  const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"))
+  const active = isActiveHref(pathname, item.href)
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Link
           href={item.href}
           className={cn(
-            "flex items-center justify-center rounded-md w-10 h-10 mx-auto transition-colors",
+            "mx-auto flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
             active
-              ? "bg-secondary text-secondary-foreground"
-              : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground",
+              ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
           )}
         >
           <item.icon className="h-4 w-4 shrink-0" />
         </Link>
       </TooltipTrigger>
-      <TooltipContent side="right" className="text-xs">{item.name}</TooltipContent>
+      <TooltipContent side="right" className="text-xs">
+        {item.name}
+      </TooltipContent>
     </Tooltip>
   )
 }
 
 function CollapsedDivider() {
-  return <div className="my-2 mx-auto w-6 h-px bg-border" />
+  return <div className="mx-auto my-2 h-px w-6 bg-sidebar-border" />
 }
-
-// ─── Expanded nav ─────────────────────────────────────────────────────────────
 
 function ExpandedNav({ onNavigate, onToggle }: { onNavigate?: () => void; onToggle?: () => void }) {
   const pathname = usePathname()
-  const defaultOpen = activeGroups(pathname)
+  const defaultOpen = navGroups.map((group) => group.key)
 
   return (
     <>
-      {/* Logo */}
-      <div className="border-b border-border shrink-0">
+      <div className="shrink-0 border-b border-sidebar-border">
         <div className="flex h-16 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2 font-bold" onClick={onNavigate}>
-            <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center shrink-0">
-              <TrendingUp className="h-4 w-4 text-primary-foreground" />
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary shadow-sm">
+              <TrendingUp className="h-4 w-4 text-sidebar-primary-foreground" />
             </div>
             <span className="text-lg tracking-tight">StoreOS</span>
           </Link>
           {onToggle && (
-            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onToggle}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              onClick={onToggle}
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
           )}
         </div>
       </div>
 
-      {/* Scrollable nav */}
       <div className="flex-1 overflow-y-auto py-2">
-        <nav className="px-2 space-y-0.5">
-          <NavLink
-            item={{ name: "Dashboard", href: "/", icon: TrendingUp }}
-            pathname={pathname}
-            onClick={onNavigate}
-          />
+        <nav className="space-y-0.5 px-2">
+          <NavLink item={{ name: "Dashboard", href: "/", icon: TrendingUp }} pathname={pathname} onClick={onNavigate} />
 
           <Accordion type="multiple" defaultValue={defaultOpen} className="w-full">
-            {navGroups.map(group => {
-              const isActive = group.items.some(
-                i => pathname === i.href || (i.href !== "/" && pathname.startsWith(i.href + "/"))
-              )
+            {navGroups.map((group) => {
+              const isGroupActive = group.items.some((item) => isActiveHref(pathname, item.href))
+
               return (
                 <AccordionItem key={group.key} value={group.key} className="border-none">
                   <AccordionTrigger
                     className={cn(
-                      "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:no-underline w-full [&>svg]:ml-auto [&>svg]:shrink-0",
-                      isActive
-                        ? "text-foreground"
-                        : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                      "flex w-full items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:no-underline [&>svg]:ml-auto [&>svg]:shrink-0",
+                      isGroupActive
+                        ? "text-sidebar-foreground"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                     )}
                   >
                     <div className="flex items-center">
-                      <group.icon className="h-4 w-4 mr-3 shrink-0" />
+                      <group.icon className="mr-3 h-4 w-4 shrink-0" />
                       <span>{group.label}</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent className="pt-0.5 pb-0">
-                    <div className="ml-4 pl-3 border-l border-border/50 space-y-0.5 mb-1">
-                      {group.items.map(item => (
+                  <AccordionContent className="pb-0 pt-0.5">
+                    <div className="mb-1 ml-4 space-y-0.5 border-l border-sidebar-border/70 pl-3">
+                      {group.items.map((item) => (
                         <NavLink key={item.href} item={item} pathname={pathname} onClick={onNavigate} />
                       ))}
                     </div>
@@ -207,26 +218,25 @@ function ExpandedNav({ onNavigate, onToggle }: { onNavigate?: () => void; onTogg
         </nav>
       </div>
 
-      {/* Bottom nav */}
-      <div className="border-t border-border p-2 shrink-0">
+      <div className="shrink-0 border-t border-sidebar-border p-2">
         <nav className="space-y-0.5">
-          {bottomNavigation.map(item =>
+          {bottomNavigation.map((item) =>
             item.isSettings ? (
               <Button
                 key={item.name}
                 variant="ghost"
-                className="w-full justify-start px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                className="w-full justify-start px-3 py-2 text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 onClick={() => {
                   onNavigate?.()
                   document.getElementById("settings-trigger")?.click()
                 }}
               >
-                <item.icon className="h-4 w-4 mr-3 shrink-0" />
+                <item.icon className="mr-3 h-4 w-4 shrink-0" />
                 <span>{item.name}</span>
               </Button>
             ) : (
               <NavLink key={item.name} item={item} pathname={pathname} onClick={onNavigate} />
-            )
+            ),
           )}
         </nav>
       </div>
@@ -234,25 +244,19 @@ function ExpandedNav({ onNavigate, onToggle }: { onNavigate?: () => void; onTogg
   )
 }
 
-// ─── Collapsed nav (icons only) ───────────────────────────────────────────────
-
 function CollapsedNav({ onToggle }: { onToggle: () => void }) {
   const pathname = usePathname()
-
-  const allItems: NavItem[] = [
-    { name: "Dashboard", href: "/", icon: TrendingUp },
-    ...navGroups.flatMap(g => g.items),
-  ]
+  const allItems: NavItem[] = [{ name: "Dashboard", href: "/", icon: TrendingUp }, ...navGroups.flatMap((group) => group.items)]
 
   return (
     <TooltipProvider delayDuration={100}>
-      <div className="border-b border-border shrink-0">
+      <div className="shrink-0 border-b border-sidebar-border">
         <div className="flex h-16 items-center justify-center">
           <Tooltip>
             <TooltipTrigger asChild>
               <Link href="/" className="flex items-center justify-center">
-                <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center">
-                  <TrendingUp className="h-4 w-4 text-primary-foreground" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary shadow-sm">
+                  <TrendingUp className="h-4 w-4 text-sidebar-primary-foreground" />
                 </div>
               </Link>
             </TooltipTrigger>
@@ -263,8 +267,9 @@ function CollapsedNav({ onToggle }: { onToggle: () => void }) {
 
       <div className="flex-1 overflow-y-auto py-3">
         <div className="space-y-1">
-          {allItems.map(item => {
-            const isGroupStart = navGroups.some(g => g.items[0].href === item.href)
+          {allItems.map((item) => {
+            const isGroupStart = navGroups.some((group) => group.items[0].href === item.href)
+
             return (
               <div key={item.href}>
                 {isGroupStart && <CollapsedDivider />}
@@ -275,24 +280,29 @@ function CollapsedNav({ onToggle }: { onToggle: () => void }) {
         </div>
       </div>
 
-      <div className="border-t border-border py-2 shrink-0 space-y-1">
+      <div className="shrink-0 space-y-1 border-t border-sidebar-border py-2">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="flex mx-auto h-10 w-10" onClick={onToggle}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="mx-auto flex h-10 w-10 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              onClick={onToggle}
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">Expandir sidebar</TooltipContent>
         </Tooltip>
 
-        {bottomNavigation.map(item =>
+        {bottomNavigation.map((item) =>
           item.isSettings ? (
             <Tooltip key={item.name}>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="flex mx-auto h-10 w-10 text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                  className="mx-auto flex h-10 w-10 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   onClick={() => document.getElementById("settings-trigger")?.click()}
                 >
                   <item.icon className="h-4 w-4" />
@@ -305,38 +315,38 @@ function CollapsedNav({ onToggle }: { onToggle: () => void }) {
               <TooltipTrigger asChild>
                 <Link
                   href={item.href}
-                  className="flex items-center justify-center mx-auto rounded-md w-10 h-10 text-muted-foreground hover:bg-secondary hover:text-secondary-foreground transition-colors"
+                  className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 >
                   <item.icon className="h-4 w-4" />
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right">{item.name}</TooltipContent>
             </Tooltip>
-          )
+          ),
         )}
       </div>
     </TooltipProvider>
   )
 }
 
-// ─── Desktop sidebar ──────────────────────────────────────────────────────────
-
 export function AppSidebar() {
   const { collapsed, toggle } = useSidebar()
+
   return (
-    <div className={cn(
-      "hidden md:flex fixed inset-y-0 z-20 flex-col bg-background border-r border-border transition-all duration-200",
-      collapsed ? "w-16" : "w-64",
-    )}>
+    <div
+      className={cn(
+        "fixed inset-y-0 z-20 hidden flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[0_10px_35px_rgba(0,0,0,0.06)] transition-all duration-200 md:flex",
+        collapsed ? "w-16" : "w-64",
+      )}
+    >
       {collapsed ? <CollapsedNav onToggle={toggle} /> : <ExpandedNav onToggle={toggle} />}
     </div>
   )
 }
 
-// ─── Mobile nav ───────────────────────────────────────────────────────────────
-
 export function MobileNav() {
   const [open, setOpen] = useState(false)
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
@@ -345,8 +355,8 @@ export function MobileNav() {
           <span className="sr-only">Abrir menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="p-0 w-64">
-        <div className="flex flex-col h-full bg-background">
+      <SheetContent side="left" className="w-64 border-sidebar-border p-0">
+        <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
           <ExpandedNav onNavigate={() => setOpen(false)} />
         </div>
       </SheetContent>

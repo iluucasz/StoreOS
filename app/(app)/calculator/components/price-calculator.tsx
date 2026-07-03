@@ -7,12 +7,8 @@ import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Info, PackageCheck } from "lucide-react"
+import { Info } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useProducts } from "@/contexts/products-context"
-import { useToast } from "@/hooks/use-toast"
 import { formatCurrency } from "@/lib/utils"
 
 function calcPrice(fixedCost: number, pctFees: number, margin: number): number {
@@ -505,66 +501,7 @@ export function PriceCalculator() {
             </p>
           </CardContent>
         </Card>
-
-        <SaveToProduct idealPrice={idealPrice} margin={margin} fixedCost={fixedCost} />
       </div>
     </div>
-  )
-}
-
-// ─── Save to product ──────────────────────────────────────────────────────────
-
-function SaveToProduct({ idealPrice, margin, fixedCost }: { idealPrice: number; margin: number; fixedCost: number }) {
-  const { products, updateProduct } = useProducts()
-  const { toast } = useToast()
-  const [selectedId, setSelectedId] = useState<string>("")
-  const [saved, setSaved] = useState(false)
-
-  function handleSave() {
-    const id = Number(selectedId)
-    const product = products.find(p => p.id === id)
-    if (!product) return
-    updateProduct({ ...product, price: Math.round(idealPrice * 100) / 100, margin })
-    setSaved(true)
-    toast({ title: "Produto atualizado", description: `${product.name} → ${idealPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}` })
-    setTimeout(() => setSaved(false), 3000)
-  }
-
-  return (
-    <Card className="border-primary/30 bg-primary/5">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <PackageCheck className="h-4 w-4 text-primary" />
-          Aplicar preço em produto
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-xs text-muted-foreground">
-          Selecione um produto do catálogo para atualizar o preço de venda com o valor calculado.
-        </p>
-        <Select value={selectedId} onValueChange={v => { setSelectedId(v); setSaved(false) }}>
-          <SelectTrigger className="h-9">
-            <SelectValue placeholder="Escolher produto..." />
-          </SelectTrigger>
-          <SelectContent>
-            {products.map(p => (
-              <SelectItem key={p.id} value={String(p.id)}>
-                {p.name} — atual {p.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          className="w-full"
-          disabled={!selectedId || idealPrice <= 0}
-          onClick={handleSave}
-          variant={saved ? "outline" : "default"}
-        >
-          {saved
-            ? "✓ Preço atualizado"
-            : `Salvar ${idealPrice > 0 ? idealPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : ""} no produto`}
-        </Button>
-      </CardContent>
-    </Card>
   )
 }

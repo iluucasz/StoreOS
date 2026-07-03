@@ -1,51 +1,89 @@
 "use client"
 
-import { useState } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useCallback, useEffect, useState } from "react"
+import { Check, Loader2, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { ShoppingBag, Check } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ShopifyDashboard } from "./components/shopify-dashboard"
 import { ShopifyOrders } from "./components/shopify-orders"
 import { ShopifyProducts } from "./components/shopify-products"
 import { ShopifyInventory } from "./components/shopify-inventory"
 import { ShopifyConfig } from "./components/shopify-config"
 
+export type ShopifyStatus = {
+  loading: boolean
+  configured: boolean
+  connected: boolean
+  error?: string
+  shop?: string
+  domain?: string
+  myshopify_domain?: string
+  plan?: string
+}
+
 export default function ShopifyPage() {
-  const [isConnected, setIsConnected] = useState(false)
+  const [tab, setTab] = useState("dashboard")
+  const [status, setStatus] = useState<ShopifyStatus>({ loading: true, configured: false, connected: false })
+
+  const checkStatus = useCallback(async () => {
+    setStatus((current) => ({ ...current, loading: true }))
+    try {
+      const response = await fetch("/api/shopify/test", { cache: "no-store" })
+      const json = await response.json()
+      setStatus({
+        loading: false,
+        configured: !!json.configured,
+        connected: !!json.connected || !!json.ok,
+        error: json.error,
+        shop: json.shop,
+        domain: json.domain,
+        myshopify_domain: json.myshopify_domain,
+        plan: json.plan,
+      })
+    } catch {
+      setStatus({ loading: false, configured: false, connected: false, error: "Falha ao verificar conexão" })
+    }
+  }, [])
+
+  useEffect(() => {
+    void checkStatus()
+  }, [checkStatus])
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start mb-6">
+    <div className="container mx-auto max-w-7xl px-4 py-6">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-            <ShoppingBag className="h-6 w-6 text-[#96bf48] shrink-0" />
+          <h1 className="flex items-center gap-2 text-2xl font-bold md:text-3xl">
+            <ShoppingBag className="h-6 w-6 shrink-0 text-[#96bf48]" />
             Shopify
           </h1>
-          <p className="text-muted-foreground">Sincronize sua loja, pedidos e estoque com o Shopify</p>
+          <p className="text-muted-foreground">
+            {status.shop ? `Loja: ${status.shop}` : "Sincronize loja, pedidos e estoque com a Shopify"}
+          </p>
         </div>
         <div className="shrink-0">
-          {isConnected ? (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 text-green-600 text-sm font-medium">
-                <Check className="h-4 w-4" />
-                Conectado
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setIsConnected(false)}>
-                Desconectar
-              </Button>
+          {status.loading ? (
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Verificando...
+            </div>
+          ) : status.connected ? (
+            <div className="flex items-center gap-1 text-sm font-medium text-green-600">
+              <Check className="h-4 w-4" />
+              Conectado
             </div>
           ) : (
-            <Button onClick={() => setIsConnected(true)}>
+            <Button onClick={() => setTab("config")}>
               <ShoppingBag className="mr-2 h-4 w-4" />
-              Conectar ao Shopify
+              Conectar Shopify
             </Button>
           )}
         </div>
       </div>
 
-      <Tabs defaultValue="dashboard">
-        <div className="overflow-x-auto mb-6">
-          <TabsList className="w-max min-w-full grid grid-cols-5">
+      <Tabs value={tab} onValueChange={setTab}>
+        <div className="mb-6 overflow-x-auto">
+          <TabsList className="grid w-max min-w-full grid-cols-5">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="orders">Pedidos</TabsTrigger>
             <TabsTrigger value="products">Produtos</TabsTrigger>
@@ -54,12 +92,20 @@ export default function ShopifyPage() {
           </TabsList>
         </div>
 
-        <TabsContent value="dashboard"><ShopifyDashboard /></TabsContent>
-        <TabsContent value="orders"><ShopifyOrders /></TabsContent>
-        <TabsContent value="products"><ShopifyProducts /></TabsContent>
-        <TabsContent value="inventory"><ShopifyInventory /></TabsContent>
+        <TabsContent value="dashboard">
+          <ShopifyDashboard />
+        </TabsContent>
+        <TabsContent value="orders">
+          <ShopifyOrders />
+        </TabsContent>
+        <TabsContent value="products">
+          <ShopifyProducts />
+        </TabsContent>
+        <TabsContent value="inventory">
+          <ShopifyInventory />
+        </TabsContent>
         <TabsContent value="config">
-          <ShopifyConfig isConnected={isConnected} setIsConnected={setIsConnected} />
+          <ShopifyConfig status={status} onRecheck={checkStatus} />
         </TabsContent>
       </Tabs>
     </div>

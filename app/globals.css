@@ -4,89 +4,89 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 47.4% 11.2%;
+    --background: 90 18% 97%;
+    --foreground: 28 12% 12%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 80 12% 92%;
+    --muted-foreground: 30 7% 41%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 28 12% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
+    --card-foreground: 28 12% 12%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 36 13% 86%;
+    --input: 36 13% 86%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 158 51% 31%;
+    --primary-foreground: 150 45% 98%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 152 21% 91%;
+    --secondary-foreground: 158 38% 18%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 39 83% 91%;
+    --accent-foreground: 31 45% 24%;
 
-    --destructive: 0 100% 50%;
+    --destructive: 0 72% 50%;
     --destructive-foreground: 210 40% 98%;
 
-    --ring: 215 20.2% 65.1%;
+    --ring: 158 51% 31%;
 
     --radius: 0.5rem;
 
     /* Sidebar variables */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 30 8% 22%;
+    --sidebar-primary: 158 51% 31%;
+    --sidebar-primary-foreground: 150 45% 98%;
+    --sidebar-accent: 150 18% 92%;
+    --sidebar-accent-foreground: 158 38% 18%;
+    --sidebar-border: 36 13% 86%;
+    --sidebar-ring: 158 51% 31%;
   }
 
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
+    --background: 30 8% 9%;
+    --foreground: 48 18% 92%;
 
-    --muted: 223 47% 11%;
-    --muted-foreground: 215.4 16.3% 56.9%;
+    --muted: 32 8% 16%;
+    --muted-foreground: 42 9% 65%;
 
-    --popover: 224 71% 4%;
-    --popover-foreground: 215 20.2% 65.1%;
+    --popover: 30 8% 11%;
+    --popover-foreground: 48 18% 92%;
 
-    --card: 224 71% 4%;
-    --card-foreground: 213 31% 91%;
+    --card: 30 8% 12%;
+    --card-foreground: 48 18% 92%;
 
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
+    --border: 32 9% 22%;
+    --input: 32 9% 22%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 1.2%;
+    --primary: 154 46% 48%;
+    --primary-foreground: 152 45% 8%;
 
-    --secondary: 222.2 47.4% 11.2%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 32 8% 18%;
+    --secondary-foreground: 48 18% 92%;
 
-    --accent: 216 34% 17%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 39 45% 24%;
+    --accent-foreground: 41 65% 88%;
 
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 66% 44%;
+    --destructive-foreground: 48 18% 92%;
 
-    --ring: 216 34% 17%;
+    --ring: 154 46% 48%;
 
     --radius: 0.5rem;
 
     /* Sidebar variables */
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 0 0% 98%;
-    --sidebar-primary-foreground: 240 5.9% 10%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 28 9% 10%;
+    --sidebar-foreground: 48 18% 88%;
+    --sidebar-primary: 154 46% 48%;
+    --sidebar-primary-foreground: 152 45% 8%;
+    --sidebar-accent: 32 8% 18%;
+    --sidebar-accent-foreground: 48 18% 92%;
+    --sidebar-border: 32 9% 21%;
+    --sidebar-ring: 154 46% 48%;
   }
 }
 
@@ -95,7 +95,11 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply min-h-screen bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-foreground;
   }
 }

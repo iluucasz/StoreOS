@@ -40,6 +40,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     listNotifications()
       .then(setNotifications)
+      .catch((error) => {
+        console.error("Failed to load notifications:", error)
+        setNotifications([])
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -47,17 +51,17 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const markAsRead = (id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
-    markNotificationRead(id).then(setNotifications)
+    markNotificationRead(id).then(setNotifications).catch((error) => console.error("Failed to mark notification:", error))
   }
 
   const markAllAsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-    markAllNotificationsRead().then(setNotifications)
+    markAllNotificationsRead().then(setNotifications).catch((error) => console.error("Failed to mark notifications:", error))
   }
 
   const dismiss = (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id))
-    dismissNotification(id).then(setNotifications)
+    dismissNotification(id).then(setNotifications).catch((error) => console.error("Failed to dismiss notification:", error))
   }
 
   return (

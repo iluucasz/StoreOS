@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import {
-  isConfigured,
   graph,
   accountId,
   timeRange,
@@ -11,6 +10,7 @@ import {
   PURCHASE,
   MetaError,
 } from "@/lib/meta-ads"
+import { getMetaRequestCredentials } from "@/lib/integrations/meta-ads-request"
 
 function pct(curr: number, prev: number): number {
   if (!prev) return 0
@@ -19,15 +19,17 @@ function pct(curr: number, prev: number): number {
 
 /** Visão geral da conta: métricas, série diária e split por plataforma (FB/IG). */
 export async function GET() {
-  if (!isConfigured()) return NextResponse.json({ configured: false })
+  const credentials = await getMetaRequestCredentials()
 
-  const acc = accountId()
+  if (!credentials) return NextResponse.json({ configured: false })
+
+  const acc = accountId(credentials)
   try {
     const [curr, prev, daily, platforms] = await Promise.all([
-      graph(`${acc}/insights`, { fields: "spend,impressions,reach,clicks,ctr,cpc,actions,action_values", time_range: timeRange(7, 0) }),
-      graph(`${acc}/insights`, { fields: "spend,actions,action_values", time_range: timeRange(7, 7) }),
-      graph(`${acc}/insights`, { fields: "spend,impressions,clicks,actions", time_increment: "1", time_range: timeRange(14, 0) }),
-      graph(`${acc}/insights`, { fields: "spend,impressions,clicks,actions", breakdowns: "publisher_platform", time_range: timeRange(7, 0) }),
+      graph(`${acc}/insights`, { fields: "spend,impressions,reach,clicks,ctr,cpc,actions,action_values", time_range: timeRange(7, 0) }, credentials),
+      graph(`${acc}/insights`, { fields: "spend,actions,action_values", time_range: timeRange(7, 7) }, credentials),
+      graph(`${acc}/insights`, { fields: "spend,impressions,clicks,actions", time_increment: "1", time_range: timeRange(14, 0) }, credentials),
+      graph(`${acc}/insights`, { fields: "spend,impressions,clicks,actions", breakdowns: "publisher_platform", time_range: timeRange(7, 0) }, credentials),
     ])
 
     const c = curr.data?.[0] ?? {}

@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server"
-import { isConfigured, runReport, parseRows, firstRow, num, gaDate, pct, translateChannel, GoogleAnalyticsError } from "@/lib/google-analytics"
+import { runReport, parseRows, firstRow, num, gaDate, pct, translateChannel, GoogleAnalyticsError } from "@/lib/google-analytics"
+import { getGoogleAnalyticsRequestCredentials } from "@/lib/integrations/google-analytics-request"
 
 /** Visão geral: métricas-resumo, séries de 7 dias, canais e funil. */
 export async function GET() {
-  if (!isConfigured()) {
+  const credentials = await getGoogleAnalyticsRequestCredentials()
+
+  if (!credentials) {
     return NextResponse.json({ configured: false })
   }
 
@@ -16,8 +19,8 @@ export async function GET() {
     ]
 
     const [curr, prev, daily, channels, funnel] = await Promise.all([
-      runReport({ dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }], metrics: totalsMetrics }),
-      runReport({ dateRanges: [{ startDate: "14daysAgo", endDate: "8daysAgo" }], metrics: totalsMetrics }),
+      runReport({ dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }], metrics: totalsMetrics }, credentials),
+      runReport({ dateRanges: [{ startDate: "14daysAgo", endDate: "8daysAgo" }], metrics: totalsMetrics }, credentials),
       runReport({
         dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }],
         dimensions: [{ name: "date" }],
@@ -29,14 +32,14 @@ export async function GET() {
           { name: "averageSessionDuration" },
         ],
         orderBys: [{ dimension: { dimensionName: "date" } }],
-      }),
+      }, credentials),
       runReport({
         dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }],
         dimensions: [{ name: "sessionDefaultChannelGroup" }],
         metrics: [{ name: "sessions" }],
         orderBys: [{ desc: true, metric: { metricName: "sessions" } }],
         limit: 6,
-      }),
+      }, credentials),
       runReport({
         dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }],
         metrics: [
@@ -45,7 +48,7 @@ export async function GET() {
           { name: "checkouts" },
           { name: "ecommercePurchases" },
         ],
-      }),
+      }, credentials),
     ])
 
     const c = firstRow(curr)

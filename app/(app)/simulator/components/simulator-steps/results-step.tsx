@@ -18,6 +18,7 @@ import {
   Percent,
 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { OsiaAnalysis } from "../osia-analysis"
 
 interface ResultsStepProps {
   data: SimulatorData
@@ -127,6 +128,8 @@ export function ResultsStep({ data, results, isCalculating = false }: ResultsSte
 
   return (
     <div className="space-y-8">
+      <OsiaAnalysis data={data} results={results} />
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="border shadow-md">
           <CardHeader className="pb-2 bg-gray-50 dark:bg-gray-900 border-b">

@@ -659,9 +659,9 @@ export default function OrdersPage() {
   useEffect(() => {
     fetch("/api/shopify/orders")
       .then((r) => r.json())
-      .then((data: ShopifyOrder[]) => {
-        if (!Array.isArray(data)) return
-        setShopifyOrders(data.map(mapShopifyOrder))
+      .then((data) => {
+        const rows: ShopifyOrder[] = Array.isArray(data) ? data : data.orders ?? []
+        setShopifyOrders(rows.map(mapShopifyOrder))
       })
       .finally(() => setLoading(false))
   }, [])

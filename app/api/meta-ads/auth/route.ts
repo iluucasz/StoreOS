@@ -1,15 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { META_SCOPE, apiVersion } from "@/lib/meta-ads"
+import { requireUser } from "@/lib/auth"
+import { META_SCOPE, apiVersion, appId } from "@/lib/meta-ads"
+import { createOAuthState } from "@/lib/integrations/oauth-state"
 
-/** Inicia o login OAuth da Meta para gerar um token de acesso com ads_read. */
 export async function GET(request: NextRequest) {
-  const clientId = process.env.META_APP_ID
+  const user = await requireUser()
+  const clientId = appId()
   if (!clientId) {
-    return NextResponse.json({ error: "META_APP_ID não configurado no .env.local" }, { status: 400 })
+    return NextResponse.json({ error: "META_APP_ID não configurado no ambiente do app." }, { status: 400 })
   }
 
   const origin = new URL(request.url).origin
   const redirectUri = process.env.META_REDIRECT_URI || `${origin}/api/meta-ads/callback`
+  const state = createOAuthState({ userId: user.id, provider: "meta_ads" })
 
   const authUrl =
     `https://www.facebook.com/${apiVersion()}/dialog/oauth?` +
@@ -18,6 +21,7 @@ export async function GET(request: NextRequest) {
       redirect_uri: redirectUri,
       response_type: "code",
       scope: META_SCOPE,
+      state,
     }).toString()
 
   return NextResponse.redirect(authUrl)
